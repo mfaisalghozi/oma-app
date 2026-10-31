@@ -3,35 +3,50 @@
 .AppleDouble
 .LSOverride
 
+# direnv (per-repo GitHub auth scoping)
+.direnv/
+
 # Environment / secrets
 .env
 .env.*
 !.env.example
 
-# Dependencies
-node_modules/
-
-# Build output
-dist/
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
 build/
-out/
+coverage/
+**/doc/api/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# iOS / macOS build artifacts
+**/ios/Flutter/ephemeral
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+**/macos/Flutter/ephemeral
+
+# Android build artifacts
+**/android/.gradle/
+**/android/local.properties
+
+# Signing material — never commit
+**/android/key.properties
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.mobileprovision
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# direnv
-.direnv/
 
 # Editors
 .idea/
+*.iml
+*.ipr
+*.iws
 .vscode/
 *.swp
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
