@@ -1,0 +1,103 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "mobile",
+  "projectType": "application",
+  "sourceRoot": "apps/mobile/lib",
+  "tags": [
+    "type:app",
+    "platform:flutter"
+  ],
+  "implicitDependencies": [
+    "contracts"
+  ],
+  "targets": {
+    "pub-get": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter pub get",
+        "cwd": "apps/mobile"
+      },
+      "cache": false
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter run",
+        "cwd": "apps/mobile"
+      },
+      "cache": false
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter analyze",
+        "cwd": "apps/mobile"
+      },
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "runtime": "flutter --version"
+        },
+        {
+          "runtime": "node -p \"process.platform + process.arch\""
+        }
+      ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter test --coverage",
+        "cwd": "apps/mobile"
+      },
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "runtime": "flutter --version"
+        },
+        {
+          "runtime": "node -p \"process.platform + process.arch\""
+        }
+      ],
+      "outputs": [
+        "{projectRoot}/coverage"
+      ]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flutter build apk",
+        "cwd": "apps/mobile"
+      },
+      "cache": false,
+      "configurations": {
+        "apk": {
+          "command": "flutter build apk"
+        },
+        "appbundle": {
+          "command": "flutter build appbundle"
+        },
+        "ios": {
+          "command": "flutter build ios --no-codesign"
+        }
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "dart format lib test",
+        "cwd": "apps/mobile"
+      },
+      "cache": false
+    },
+    "format-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "dart format --output=none --set-exit-if-changed lib test",
+        "cwd": "apps/mobile"
+      },
+      "cache": false
+    }
+  }
+}

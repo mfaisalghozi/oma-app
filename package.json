@@ -1,0 +1,25 @@
+{
+  "name": "oma",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Oma monorepo: Flutter mobile, Go API, and future web frontend",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "nx": "nx",
+    "graph": "nx graph",
+    "lint": "nx run-many -t lint",
+    "test": "nx run-many -t test",
+    "build": "nx run-many -t build",
+    "mobile": "nx run mobile:serve",
+    "api": "nx run api:serve",
+    "worker": "nx run api:worker"
+  },
+  "devDependencies": {
+    "nx": "24.0.3"
+  }
+}

@@ -50,3 +50,11 @@ coverage/
 *.iws
 .vscode/
 *.swp
+
+# Node / Nx
+node_modules/
+.nx/
+dist/
+
+# Go test artifacts
+*.test

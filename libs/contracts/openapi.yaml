@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: Oma API
+  version: 0.1.0
+  description: Shared API contract for the Go backend and its clients.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check API health
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]

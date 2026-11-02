@@ -1,30 +1,277 @@
-# oma-app
+# Oma
 
-A Flutter app.
+A monorepo using Nx to run tasks for a Flutter mobile app, a Go backend, and a
+future web frontend. npm manages workspace tooling, pub manages Flutter
+packages, and Go modules manage backend dependencies.
 
-## Requirements
+## Repository structure
 
-- Flutter 3.47.9 (stable) / Dart 3.13.7
-- Xcode 26.2 (iOS)
-- Android Studio + JDK (Android)
+```text
+apps/
+  mobile/                 # Flutter application
+    android/
+    ios/
+    lib/
+    test/
+    assets/
+    pubspec.yaml
+    project.json
+  api/
+    cmd/api/              # HTTP API with GET /health
+    cmd/worker/           # Worker scaffold; no jobs configured yet
+    internal/             # auth, profile, discovery, matching, chat,
+                          # moderation, platform (reserved directories)
+    migrations/
+    go.mod
+    project.json
+  web/                    # Placeholder for the future web frontend
+libs/contracts/           # Shared OpenAPI contract
+  openapi.yaml
+  project.json
+tools/scripts/
+infrastructure/
+  docker/
+  deployment/
+```
 
-## Getting started
+Empty directories are tracked with `.gitkeep`. Infrastructure directories are
+reserved for future Docker and deployment configuration.
+
+## Workspace installation
+
+Install Node.js 24 and npm, then run the following commands from the repository
+root:
 
 ```sh
+node --version
+npm --version
+npm ci
+npx nx show projects
+```
+
+The project list should include `mobile`, `api`, `web`, and `contracts`.
+`npm ci` installs Nx and the configured npm workspaces using the root
+`package-lock.json`. It does not install Flutter packages or Go modules.
+
+Install only the additional toolchains needed for the app you work on, as
+described below. Make sure their executables are available on your `PATH`.
+
+If you use direnv, the root `.envrc` scopes GitHub CLI authentication to the
+personal account. Run `direnv allow` if prompted.
+
+## Mobile app installation
+
+### Prerequisites
+
+1. [Install the Flutter SDK](https://docs.flutter.dev/install) and add its `bin`
+   directory to your `PATH`. Dart is included with Flutter.
+2. Use a Flutter release that satisfies `apps/mobile/pubspec.yaml`, which
+   currently requires Dart `^3.13.7`. The original scaffold used Flutter 3.47.9
+   with Dart 3.13.7.
+3. Configure your target platform:
+   - **Android:** install Android Studio, the Android SDK, and a compatible JDK
+     using the [Flutter Android setup guide](https://docs.flutter.dev/platform-integration/android/setup).
+     Create an emulator or connect an Android device with USB debugging enabled.
+   - **iOS:** use macOS with Xcode and follow the
+     [Flutter iOS setup guide](https://docs.flutter.dev/platform-integration/ios/setup).
+     Start an iOS simulator or connect a configured iPhone.
+
+Check the toolchain and resolve any issues reported for your target platform:
+
+```sh
+flutter --version
+flutter doctor -v
+flutter devices
+```
+
+### Install dependencies and run
+
+After completing the workspace installation, run from the repository root:
+
+```sh
+npx nx run mobile:pub-get
+npm run mobile
+```
+
+To select a specific device, replace `DEVICE_ID` with an ID from `flutter devices`:
+
+```sh
+npx nx run mobile:serve -- -d DEVICE_ID
+```
+
+You can also use Flutter directly from the app directory:
+
+```sh
+cd apps/mobile
 flutter pub get
 flutter run
 ```
 
-## Checks
+### Check and build
+
+Run these commands from the repository root:
 
 ```sh
-flutter analyze
-flutter test
+npx nx run mobile:lint
+npx nx run mobile:test
+npx nx run mobile:format-check
+npx nx run mobile:format
+npx nx run mobile:build                   # Android APK
+npx nx run mobile:build:appbundle          # Android App Bundle
+npx nx run mobile:build:ios                # iOS build without code signing
 ```
 
-## Notes
+Build output is written to `apps/mobile/build/`; test coverage is written to
+`apps/mobile/coverage/`. Android builds require the Android toolchain, and iOS
+builds require macOS and Xcode. Signing and distribution require additional
+platform configuration.
 
-- Dart package name: `oma_app` (dashes are not valid in package names)
-- Bundle / application ID prefix: `com.mfaisalghozi`
-- This directory uses `direnv` (`.envrc`) to scope the GitHub CLI to the
-  personal account. Run `direnv allow` once if prompted.
+The Dart package name remains `oma_app`; the Android and iOS application IDs
+are unchanged.
+
+## API and worker installation
+
+### Prerequisites
+
+[Install Go](https://go.dev/doc/install) 1.26 or later, as required by
+`apps/api/go.mod`, and verify the installation:
+
+```sh
+go version
+```
+
+### Install dependencies
+
+After completing the workspace installation, download Go module dependencies:
+
+```sh
+cd apps/api
+go mod download
+cd ../..
+```
+
+The scaffold currently uses only the Go standard library, so this step may
+report that there are no module dependencies to download. A `go.sum` file will
+be generated when external dependencies requiring checksums are added.
+
+The current API and worker do not require a database, message broker, or `.env`
+file. Business modules, migrations, and job processing are not implemented yet.
+
+### Run the API
+
+From the repository root:
+
+```sh
+npm run api
+```
+
+The API listens on port `8080` by default. In a second terminal, verify it with:
+
+```sh
+curl http://localhost:8080/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+To change the listening address in a POSIX shell:
+
+```sh
+API_ADDR=127.0.0.1:9090 npm run api
+```
+
+### Run the worker
+
+In a separate terminal at the repository root:
+
+```sh
+npm run worker
+```
+
+The worker is a scaffold that waits for a shutdown signal. Stop it with `Ctrl+C`.
+It shares the API's Go module and needs no separate dependency installation.
+
+To run either entry point without Nx, use these commands from `apps/api`
+(in separate terminals if running both):
+
+```sh
+go run ./cmd/api
+go run ./cmd/worker
+```
+
+### Check and build
+
+From the repository root:
+
+```sh
+npx nx run api:lint                       # go vet ./...
+npx nx run api:test                       # go test ./...
+npx nx run api:format                     # go fmt ./...
+npx nx run api:build
+```
+
+The build produces API and worker executables in `dist/apps/api/`.
+
+## Web app installation
+
+`apps/web` is currently a placeholder registered as the `@oma/web` npm workspace.
+It has no frontend framework, dependencies, or runnable targets yet. The
+workspace installation (`npm ci` at the repository root) already includes it;
+there is no separate installation or development server at this stage.
+
+When implementing the web frontend:
+
+1. Add the framework and application code under `apps/web`.
+2. Add its dependencies to `apps/web/package.json` using npm workspaces, for example
+   `npm install PACKAGE_NAME --workspace=@oma/web`, replacing `PACKAGE_NAME` with
+   the actual package name. Commit the updated root `package-lock.json`.
+3. Define the corresponding development, build, test, and lint targets in
+   `apps/web/project.json`.
+4. Document the framework's environment variables and run commands here.
+
+Keep the Nx project name as `web` and use the root npm lockfile. See the
+[npm workspaces guide](https://docs.npmjs.com/cli/using-npm/workspaces/) for
+workspace dependency management.
+
+## Shared contracts
+
+`libs/contracts/openapi.yaml` defines the shared API contract. No separate
+installation is required. Update the contract when API request or response
+shapes change. Client generation and automatic schema validation have not been
+configured yet.
+
+The `api`, `mobile`, and `web` projects depend on `contracts` in the Nx graph.
+Contract changes mark those consumers as affected and invalidate their related
+cached tasks.
+
+## Workspace checks and caching
+
+From the repository root:
+
+```sh
+npm run lint                             # Flutter analyze and go vet
+npm test                                 # Flutter test and go test
+npm run build                            # Go binaries and Android APK
+npm run graph
+npx nx affected -t lint,test --base=main --head=HEAD
+```
+
+Workspace commands require the toolchains for all selected apps. Web and
+contracts currently have no build, test, or lint targets. For CI on the main
+branch, set `--base` to the appropriate comparison commit or branch.
+
+Nx caches lint/test tasks and Go builds. Mobile builds, dependency installation,
+formatting, and running applications are not cached. Lint/test inputs include
+toolchain versions; Go build inputs also include Go platform configuration.
+
+To bypass both the Nx cache and Go's test cache:
+
+```sh
+npx nx run api:test --skip-nx-cache -- -count=1
+```
+
+See the [Nx project configuration reference](https://nx.dev/docs/reference/project-configuration)
+and [Nx cache input reference](https://nx.dev/docs/reference/inputs) for details.
