@@ -1,0 +1,97 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "api",
+  "projectType": "application",
+  "sourceRoot": "apps/api",
+  "tags": [
+    "type:app",
+    "platform:go"
+  ],
+  "implicitDependencies": [
+    "contracts"
+  ],
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go run ./cmd/api",
+        "cwd": "apps/api"
+      },
+      "cache": false
+    },
+    "worker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go run ./cmd/worker",
+        "cwd": "apps/api"
+      },
+      "cache": false
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "go build -o ../../dist/apps/api/api ./cmd/api",
+          "go build -o ../../dist/apps/api/worker ./cmd/worker"
+        ],
+        "cwd": "apps/api",
+        "parallel": false
+      },
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "runtime": "go version"
+        },
+        {
+          "runtime": "go env GOOS GOARCH CGO_ENABLED GOFLAGS"
+        }
+      ],
+      "outputs": [
+        "{workspaceRoot}/dist/apps/api"
+      ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go test ./...",
+        "cwd": "apps/api"
+      },
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "runtime": "go version"
+        },
+        {
+          "runtime": "go env GOOS GOARCH CGO_ENABLED GOFLAGS"
+        }
+      ]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go vet ./...",
+        "cwd": "apps/api"
+      },
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "runtime": "go version"
+        },
+        {
+          "runtime": "go env GOOS GOARCH CGO_ENABLED GOFLAGS"
+        }
+      ]
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "go fmt ./...",
+        "cwd": "apps/api"
+      },
+      "cache": false
+    }
+  }
+}
