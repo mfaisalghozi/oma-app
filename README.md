@@ -243,7 +243,6 @@ GitHub Actions workflows live in `.github/workflows/`:
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
 | `mobile-ci.yml` | PRs and pushes to `main` / `release/**` touching `apps/mobile` | `pub get --enforce-lockfile`, `dart format` check, `flutter analyze --fatal-infos`, `flutter test --coverage` (goldens included). Golden diffs are uploaded as the `golden-failures` artifact when a test fails. |
-| `api-ci.yml` | PRs and pushes touching `apps/api` | `gofmt` check, `go vet`, `go test -race`, build of API + worker. |
 | `mobile-cd.yml` | `v*` tags and manual runs | Release AAB + APK (Ubuntu) and an unsigned `Runner.app` zip (macOS), uploaded as workflow artifacts. Tag `v0.1.0` builds version `0.1.0`; the build number is the workflow run number. |
 | `mobile-integration.yml` | Manual only | Placeholder that runs `integration_test/` on an Android emulator. Skips until `apps/mobile/integration_test/` exists. |
 
