@@ -45,6 +45,7 @@ dependencies:
   uuid: 4.6.0
   meta: 1.19.0
   cupertino_icons: 1.0.8
+  crypto: 3.0.7
 
 dev_dependencies:
   flutter_test:
