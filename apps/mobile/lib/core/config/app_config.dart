@@ -15,6 +15,7 @@ class AppConfig {
     this.authPhoneEnabled = false,
     this.googleWebClientId = '',
     this.googleIosClientId = '',
+    this.webBaseUrl = 'https://oma.app',
   });
 
   factory AppConfig.fromEnvironment() => const AppConfig(
@@ -32,6 +33,10 @@ class AppConfig {
     authPhoneEnabled: bool.fromEnvironment('AUTH_PHONE_ENABLED'),
     googleWebClientId: String.fromEnvironment('GOOGLE_WEB_CLIENT_ID'),
     googleIosClientId: String.fromEnvironment('GOOGLE_IOS_CLIENT_ID'),
+    webBaseUrl: String.fromEnvironment(
+      'WEB_BASE_URL',
+      defaultValue: 'https://oma.app',
+    ),
   );
 
   final String flavor;
@@ -50,6 +55,13 @@ class AppConfig {
 
   final String googleWebClientId;
   final String googleIosClientId;
+
+  /// Public web (W01 to W04). Terms and Privacy live at W03.
+  /// TODO(web): confirm the domain; `oma.app` is a placeholder.
+  final String webBaseUrl;
+
+  Uri get termsUrl => Uri.parse('$webBaseUrl/terms');
+  Uri get privacyUrl => Uri.parse('$webBaseUrl/privacy');
 
   bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;

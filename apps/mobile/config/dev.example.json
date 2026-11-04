@@ -6,5 +6,6 @@
   "AUTH_REDIRECT_URL": "com.mfaisalghozi.omaapp://auth/callback",
   "AUTH_PHONE_ENABLED": "false",
   "GOOGLE_WEB_CLIENT_ID": "",
-  "GOOGLE_IOS_CLIENT_ID": ""
+  "GOOGLE_IOS_CLIENT_ID": "",
+  "WEB_BASE_URL": "https://oma.app"
 }
