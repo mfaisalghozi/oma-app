@@ -69,6 +69,7 @@ abstract final class OmaTheme {
         ),
         errorStyle: TextStyle(color: c.error, fontSize: 13),
         helperStyle: TextStyle(color: c.textMuted, fontSize: 13),
+        counterStyle: TextStyle(color: c.textMuted, fontSize: 13),
       ),
       checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),

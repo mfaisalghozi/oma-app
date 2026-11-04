@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/oma_colors.dart';
 
@@ -21,6 +22,8 @@ class OmaField extends StatelessWidget {
     this.autofillHints,
     this.readOnly = false,
     this.onTap,
+    this.showCounter = false,
+    this.inputFormatters,
     super.key,
   });
 
@@ -40,6 +43,10 @@ class OmaField extends StatelessWidget {
   final Iterable<String>? autofillHints;
   final bool readOnly;
   final VoidCallback? onTap;
+
+  /// Shows "82/255" under the field (bio, ambition).
+  final bool showCounter;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +75,7 @@ class OmaField extends StatelessWidget {
           autofillHints: autofillHints,
           readOnly: readOnly,
           onTap: onTap,
+          inputFormatters: inputFormatters,
           style: TextStyle(fontSize: 16, color: c.text),
           decoration: InputDecoration(
             hintText: placeholder,
@@ -76,8 +84,8 @@ class OmaField extends StatelessWidget {
             helperMaxLines: 3,
             errorMaxLines: 3,
             suffixIcon: suffix,
-            counterText: '',
-            semanticCounterText: '',
+            counterText: showCounter ? null : '',
+            semanticCounterText: showCounter ? null : '',
           ),
         ),
       ],
