@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/api/api_client.dart';
+import '../data/api_device_repository.dart';
 import '../data/device_adapters.dart';
+import '../domain/device_repository.dart';
 import '../domain/location_service.dart';
 import '../domain/push_service.dart';
 
@@ -20,21 +19,9 @@ final devicePlatformProvider = Provider<DevicePlatform>(
   (ref) => currentPlatform(),
 );
 
-abstract interface class PendingFlag {
-  Future<bool> get();
-  Future<void> set(bool value);
-}
-
-class PrefsPendingFlag implements PendingFlag {
-  static const _key = 'oma.push.registration_pending';
-  final _prefs = SharedPreferencesAsync();
-
-  @override
-  Future<bool> get() async => await _prefs.getBool(_key) ?? false;
-
-  @override
-  Future<void> set(bool value) => _prefs.setBool(_key, value);
-}
+final deviceRepositoryProvider = Provider<DeviceRepository>(
+  (ref) => ApiDeviceRepository(ref.watch(apiClientProvider)),
+);
 
 final pushPendingFlagProvider = Provider<PendingFlag>(
   (ref) => PrefsPendingFlag(),
@@ -42,50 +29,50 @@ final pushPendingFlagProvider = Provider<PendingFlag>(
 
 /// Never blocks onboarding: a failure sets a flag and [retryPending] retries.
 class DeviceRegistrar {
-  DeviceRegistrar(this._ref);
+  DeviceRegistrar(this._push, this._devices, this._pending, this._platform);
 
-  final Ref _ref;
+  final PushService _push;
+  final DeviceRepository _devices;
+  final PendingFlag _pending;
+  final DevicePlatform _platform;
 
   Future<void> register() async {
-    final flag = _ref.read(pushPendingFlagProvider);
-    Future<void> owe() async {
-      try {
-        await flag.set(true);
-      } on Object {
-        // Storage failed too; nothing more to do.
-      }
-    }
-
     try {
-      final token = await _ref.read(pushServiceProvider).token();
+      final token = await _push.token();
       if (token == null) {
         // Push isn't configured on this build: keep owing a registration.
-        await owe();
+        await _owe();
         return;
       }
-      await _ref
-          .read(apiClientProvider)
-          .post(
-            '/devices',
-            body: {
-              'token': token,
-              'platform': _ref.read(devicePlatformProvider).name,
-              'provider': 'fcm',
-            },
-          );
-      await flag.set(false);
+      await _devices.registerPushToken(token: token, platform: _platform);
+      await _pending.set(false);
     } on Object {
-      await owe();
+      await _owe();
     }
   }
 
   Future<void> retryPending() async {
     try {
-      if (await _ref.read(pushPendingFlagProvider).get()) await register();
+      if (await _pending.get()) await register();
     } on Object {
       // Try again on the next start.
     }
   }
+
+  Future<void> _owe() async {
+    try {
+      await _pending.set(true);
+    } on Object {
+      // Storage failed too; nothing more to do.
+    }
+  }
 }
 
-final deviceRegistrarProvider = Provider<DeviceRegistrar>(DeviceRegistrar.new);
+final deviceRegistrarProvider = Provider<DeviceRegistrar>(
+  (ref) => DeviceRegistrar(
+    ref.watch(pushServiceProvider),
+    ref.watch(deviceRepositoryProvider),
+    ref.watch(pushPendingFlagProvider),
+    ref.watch(devicePlatformProvider),
+  ),
+);

@@ -7,6 +7,7 @@ import 'package:oma_app/core/api/api_client.dart';
 import 'package:oma_app/core/errors/failure.dart';
 import 'package:oma_app/core/theme/oma_theme.dart';
 import 'package:oma_app/features/device/application/device_registrar.dart';
+import 'package:oma_app/features/device/domain/device_repository.dart';
 import 'package:oma_app/features/device/domain/location_service.dart';
 import 'package:oma_app/features/device/domain/push_service.dart';
 import 'package:oma_app/features/onboarding/domain/entities/onboarding_draft.dart';
