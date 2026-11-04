@@ -31,6 +31,8 @@ dependencies:
   image_picker: 1.2.4
   flutter_image_compress: 2.5.1
   nsfw_detect: 2.8.0
+  crypto: 3.0.7
+  path_provider: 2.1.6
 
   # Location and permissions (M10, M11)
   geolocator: 14.1.2

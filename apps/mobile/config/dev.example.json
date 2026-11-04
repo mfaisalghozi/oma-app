@@ -7,5 +7,10 @@
   "AUTH_PHONE_ENABLED": "false",
   "GOOGLE_WEB_CLIENT_ID": "",
   "GOOGLE_IOS_CLIENT_ID": "",
-  "WEB_BASE_URL": "https://oma.app"
+  "WEB_BASE_URL": "https://oma.app",
+  "NSFW_MODEL_URL_ANDROID": "https://<mirror>/models/opennsfw2-v1.tflite",
+  "NSFW_MODEL_SHA256_ANDROID": "<sha256 hex>",
+  "NSFW_MODEL_URL_IOS": "https://<mirror>/models/opennsfw2-v1.mlmodel",
+  "NSFW_MODEL_SHA256_IOS": "<sha256 hex>",
+  "NSFW_THRESHOLD": "0.7"
 }
