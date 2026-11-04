@@ -2,10 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/config/app_config.dart';
 import '../data/api_account_repository.dart';
+import '../data/lockout_store.dart';
+import '../data/supabase_email_auth_repository.dart';
 import '../data/supabase_auth_repository.dart';
 import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/email_auth_repository.dart';
 
 /// The only place the auth interfaces are bound to implementations.
 /// Tests override these providers with fakes.
@@ -20,6 +24,18 @@ final authRepositoryProvider = Provider<AuthRepository>(
 final accountRepositoryProvider = Provider<AccountRepository>(
   (ref) => ApiAccountRepository(ref.watch(apiClientProvider)),
 );
+
+final emailAuthRepositoryProvider = Provider<EmailAuthRepository>(
+  (ref) => SupabaseEmailAuthRepository(
+    Supabase.instance.client.auth,
+    redirectUrl: ref.watch(appConfigProvider).authRedirectUrl,
+  ),
+);
+
+final lockoutStoreProvider = Provider<LockoutStore>((ref) => LockoutStore());
+
+/// Injectable clock for the lockout and resend timers.
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 /// Email address of a sign-up waiting for its confirmation link (M04c), or
 /// null. Set by the email flow; read by the gates.
