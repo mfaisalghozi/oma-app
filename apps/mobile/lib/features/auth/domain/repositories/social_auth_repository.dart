@@ -1,5 +1,3 @@
-import '../../../../core/errors/failure.dart';
-
 abstract interface class SocialAuthRepository {
   Future<void> signInWithGoogle();
 
