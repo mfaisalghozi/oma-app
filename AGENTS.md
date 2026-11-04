@@ -62,11 +62,35 @@ If you change UI, regenerate goldens on Linux with
 `flutter test --update-goldens --tags golden` and look at the new images
 before committing them.
 
+## Clean code and comments (all PRs)
+
+- **Code explains what; comments explain why.** Write a comment only for a
+  non-obvious reason: a privacy or security constraint, a workaround, a
+  backend or design mismatch, a race, a deliberate fail-closed choice. Keep it
+  to one or two lines.
+- Don't write comments that restate the code, the name, the screen title or
+  the ticket, and don't add section-divider comments. Rename or extract a
+  function instead of explaining a block.
+- No doc comment on a class or member whose name already says what it does.
+- `TODO(scope): ...` is fine for known follow-ups; link the ticket when there
+  is one. Trailing screen codes (`// M06`) on routes and steps are allowed so
+  code maps to the design.
+- Follow the layer rules below strictly. A PR that adds a comment explaining
+  why a layer rule is bent should instead fix the layering.
+
 ## Flutter conventions (`apps/mobile`)
 
 - **Layers:** `features/<name>/{domain,data,application,presentation}`.
-  `domain` is pure Dart (no Flutter, Supabase or Dio imports). `presentation`
-  never imports `data` directly; it reads providers from `application`.
+  - `domain` is pure Dart: entities, repository and service interfaces, use
+    cases. No Flutter, Riverpod, Supabase, Dio or plugin imports.
+  - `data` implements domain interfaces (API, Supabase, storage, plugins).
+  - `application` holds providers and controllers. It talks to domain
+    interfaces only; importing `data` is allowed solely to bind an interface
+    to its implementation in a provider. No HTTP calls, storage or plugin
+    code here.
+  - `presentation` never imports `data`; it reads providers from
+    `application`.
+  - `core` never imports a feature.
 - **Riverpod 3, hand-written providers** (no codegen). Async notifiers use
   `retry: (_, _) => null`. Don't read `ref` or `state` inside `onDispose`;
   capture what you need first.

@@ -69,7 +69,6 @@ class FakeAuthRepository implements AuthRepository, AccessTokenSource {
 class FakeAccountRepository implements AccountRepository {
   FakeAccountRepository(this.result);
 
-  /// Either an [AccountState] or an exception to throw.
   Object result;
   int calls = 0;
 

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'oma_scaffold.dart';
 
-/// Stand-in for a screen whose ticket has not landed yet. Each feature ticket
-/// replaces its screen file, so the router never needs to change.
 class PlaceholderScreen extends StatelessWidget {
   const PlaceholderScreen({
     required this.screenId,

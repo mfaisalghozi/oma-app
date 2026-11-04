@@ -1,4 +1,3 @@
-/// Every route path in one place. Screen IDs follow the v0.1 design canvas.
 abstract final class Routes {
   static const splash = '/splash'; // M00
   static const welcome = '/welcome'; // M01
@@ -15,7 +14,6 @@ abstract final class Routes {
   static const discover = '/discover'; // M12 (not in this feature)
   static const restricted = '/restricted'; // M26 / frozen prompt
 
-  /// Reachable without a session.
   static const public = {
     welcome,
     signIn,

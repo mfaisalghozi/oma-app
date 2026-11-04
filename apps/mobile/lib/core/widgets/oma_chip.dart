@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/oma_colors.dart';
 
-/// Selectable pill (40 px) used for single and multi choice on M06 to M08.
 class OmaChoiceChip extends StatelessWidget {
   const OmaChoiceChip({
     required this.label,
