@@ -318,9 +318,15 @@ void main() {
       picker.next = [for (final n in names) _file(n)];
       await tester.runAsync(() async {
         await tester.tap(find.text('Add').first);
-        await Future<void>.delayed(const Duration(milliseconds: 50));
       });
-      await tester.pump();
+      final spinner = find.byType(CircularProgressIndicator);
+      for (var i = 0; i < 40; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+        if (storage.hold == null && spinner.evaluate().isEmpty) break;
+      }
     }
 
     testWidgets('Next needs one uploaded photo', (tester) async {
