@@ -1,4 +1,3 @@
-/// Account status from `POST /v1/me/initialize` (BE doc section 8.2).
 enum AccountStatus {
   active,
   frozen,
@@ -11,7 +10,6 @@ enum AccountStatus {
   };
 }
 
-/// What the backend says the user must do next.
 enum NextAction {
   acceptConsents('accept_consents'),
   completeOnboarding('complete_onboarding'),

@@ -134,7 +134,6 @@ void main() {
     apiClientProvider.overrideWithValue(api),
   ];
 
-  /// Hosts [screen] in a router so `context.go` works; `/next` marks done.
   Future<void> pumpRouted(
     WidgetTester tester,
     Widget screen, {

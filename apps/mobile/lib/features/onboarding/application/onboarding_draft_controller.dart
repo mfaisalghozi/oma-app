@@ -11,8 +11,7 @@ final onboardingDraftStoreProvider = Provider<OnboardingDraftStore>(
   (ref) => SecureOnboardingDraftStore(),
 );
 
-/// The signed-in user's id, or null. Narrow so token refreshes don't reload
-/// the draft.
+/// Narrow so token refreshes don't reload the draft.
 final _currentUserIdProvider = Provider<String?>(
   (ref) => switch (ref.watch(sessionControllerProvider).value) {
     SignedIn(:final user) => user.userId,
@@ -20,16 +19,12 @@ final _currentUserIdProvider = Provider<String?>(
   },
 );
 
-/// The current user's onboarding answers. Null when nobody is signed in.
-///
-/// Taps and picks are written to secure storage before the state updates, so
-/// killing the app at any point resumes with the answers intact. Typing is
-/// saved [typingDelay] after the last keystroke.
+/// Taps are saved before the state updates, so a killed app resumes intact.
+/// Typing is saved [typingDelay] after the last keystroke.
 class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
   static const typingDelay = Duration(milliseconds: 400);
   Timer? _pending;
 
-  /// The typed change waiting for [_pending], saved on dispose too.
   OnboardingDraft? _unsaved;
 
   @override
@@ -50,7 +45,6 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
     return OnboardingDraft(userId: userId);
   }
 
-  /// Applies [change] and persists it. No-op while signed out or loading.
   Future<void> edit(
     OnboardingDraft Function(OnboardingDraft draft) change,
   ) async {
@@ -63,7 +57,6 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
     state = AsyncData(next);
   }
 
-  /// For text fields: updates now, saves after a short pause in typing.
   void editTyping(OnboardingDraft Function(OnboardingDraft draft) change) {
     final current = state.value;
     if (current == null) return;
@@ -74,7 +67,6 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
     _pending = Timer(typingDelay, flush);
   }
 
-  /// Saves a pending typed change now (Next, back, app paused).
   Future<void> flush() async {
     _pending?.cancel();
     final d = _unsaved;
@@ -82,7 +74,6 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
     if (d != null) await ref.read(onboardingDraftStoreProvider).save(d);
   }
 
-  /// After a successful submit, sign-out or account deletion.
   Future<void> clear() async {
     _pending?.cancel();
     _unsaved = null;

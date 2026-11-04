@@ -13,8 +13,6 @@ class OmaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // A push registration that failed during onboarding is retried on the
-    // next start, once the user is signed in.
     ref.listen(sessionControllerProvider, (prev, next) {
       if (next.value is SignedIn && prev?.value is! SignedIn) {
         unawaited(ref.read(deviceRegistrarProvider).retryPending());

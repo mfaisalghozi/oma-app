@@ -13,8 +13,6 @@ import '../../domain/entities/onboarding_step.dart';
 import '../widgets/draft_builder.dart';
 import '../widgets/step_frame.dart';
 
-/// M11 Don't miss a match: our own pre-prompt; the OS dialog only shows
-/// after Turn on notifications.
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
@@ -97,7 +95,6 @@ class _NotificationsBodyState extends ConsumerState<_NotificationsBody> {
   }
 }
 
-/// What the user will be notified about (and nothing else).
 class _Example extends StatelessWidget {
   const _Example({
     required this.icon,

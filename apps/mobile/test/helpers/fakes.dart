@@ -72,7 +72,6 @@ class FakeAuthRepository implements AuthRepository, AccessTokenSource {
 class FakeAccountRepository implements AccountRepository {
   FakeAccountRepository(this.result);
 
-  /// Either an [AccountState] or an exception to throw.
   Object result;
   int calls = 0;
 
@@ -85,7 +84,6 @@ class FakeAccountRepository implements AccountRepository {
   }
 }
 
-/// In-memory stand-in for the Keychain / Keystore draft store.
 class MemoryDraftStore implements OnboardingDraftStore {
   MemoryDraftStore([this.saved]);
 

@@ -6,8 +6,6 @@ import '../../../../core/widgets/oma_chip.dart';
 import '../../application/master_data_providers.dart';
 import '../../domain/entities/master_option.dart';
 
-/// Chips for a short master-data list. Single choice when [multi] is false.
-/// A load failure shows Try again; the user's picks stay in the draft.
 class MasterChips extends ConsumerWidget {
   const MasterChips({
     required this.type,

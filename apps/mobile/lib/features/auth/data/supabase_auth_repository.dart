@@ -4,8 +4,6 @@ import '../../../core/api/api_client.dart';
 import '../domain/entities/auth_session.dart';
 import '../domain/repositories/auth_repository.dart';
 
-/// [AuthRepository] over supabase_flutter. Also serves as the API client's
-/// [AccessTokenSource].
 class SupabaseAuthRepository implements AuthRepository, AccessTokenSource {
   SupabaseAuthRepository(this._auth);
 

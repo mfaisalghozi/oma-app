@@ -1,16 +1,12 @@
 enum LocationAccess { granted, denied, deniedForever, serviceOff }
 
-/// Coordinates already rounded on the device.
 typedef RoundedFix = ({double latitude, double longitude});
 
-/// Device location for M10: one coarse fix, no tracking.
 abstract interface class LocationService {
   Future<LocationAccess> status();
 
-  /// Shows the OS dialog when it can still be shown.
   Future<LocationAccess> request();
 
-  /// One coarse fix, rounded with [roundCoordinate] before it is returned.
   Future<RoundedFix> currentFix();
 
   Future<void> openSettings();

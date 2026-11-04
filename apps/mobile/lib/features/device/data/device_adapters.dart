@@ -56,9 +56,7 @@ class GeolocatorLocationService implements LocationService {
   };
 }
 
-/// Push through FCM on both platforms. Firebase projects aren't set up yet
-/// (no google-services.json / GoogleService-Info.plist), so when Firebase
-/// isn't initialised it still asks the OS permission but returns no token.
+/// Without Firebase initialised it still asks permission but returns no token.
 class FirebasePushService implements PushService {
   bool get _firebaseReady => Firebase.apps.isNotEmpty;
 
@@ -72,9 +70,7 @@ class FirebasePushService implements PushService {
     return (await Permission.notification.request()).isGranted;
   }
 
-  /// The Firebase Installation ID from `register()` / `onRegistered`, which
-  /// replaces the deprecated `getToken()` in firebase_messaging 17 as the
-  /// direct-send target.
+  /// Firebase Installation ID from `register()`; `getToken()` is deprecated.
   @override
   Future<String?> token() async {
     if (!_firebaseReady) return null;
