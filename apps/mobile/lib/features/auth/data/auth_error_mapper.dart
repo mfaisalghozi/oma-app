@@ -2,8 +2,6 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../core/errors/failure.dart';
 
-/// Maps Supabase Auth errors to stable kinds. Switches on the error code,
-/// never on the message text.
 AuthFailure mapAuthException(sb.AuthException e) {
   if (e is sb.AuthRetryableFetchException) {
     return const AuthFailure(AuthFailureKind.network);

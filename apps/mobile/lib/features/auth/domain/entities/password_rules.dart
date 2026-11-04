@@ -1,4 +1,3 @@
-/// M04b live password rules: at least 8 characters, a letter and a number.
 /// Supabase's password policy enforces the same on the server.
 class PasswordRules {
   const PasswordRules(this.password);
@@ -14,6 +13,5 @@ class PasswordRules {
   bool get valid => longEnough && hasLetterAndNumber;
 }
 
-/// Basic shape check before calling Supabase; the server has the final say.
 bool looksLikeEmail(String email) =>
     RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.trim());

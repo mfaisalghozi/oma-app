@@ -5,8 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/entities/sign_in_lockout.dart';
 
-/// Keeps the M04 lockout per email across restarts. The key is a hash, so
-/// the address itself is not stored.
+/// Keyed by a hash so the address itself is not stored.
 class LockoutStore {
   LockoutStore([SharedPreferencesAsync? prefs])
     : _prefs = prefs ?? SharedPreferencesAsync();

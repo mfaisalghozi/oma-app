@@ -111,11 +111,9 @@ void main() {
         now.add(const Duration(minutes: 15)),
       );
 
-      // While paused the API is not called.
       await ctrl.signIn('a@b.co', 'x');
       expect(emailAuth.calls, hasLength(3));
 
-      // After the pause the counter starts again.
       now = now.add(const Duration(minutes: 16));
       emailAuth.next = null;
       await ctrl.signIn('a@b.co', 'right1234');

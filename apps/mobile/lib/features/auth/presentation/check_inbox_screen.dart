@@ -14,9 +14,6 @@ import '../../../core/widgets/oma_scaffold.dart';
 import '../application/auth_providers.dart';
 import '../application/email_auth_controller.dart';
 
-/// M04c Check your email. The confirmation link opens `/auth/callback` on
-/// this phone; supabase_flutter turns it into a session and the gates move
-/// on to M05.
 class CheckInboxScreen extends ConsumerStatefulWidget {
   const CheckInboxScreen({super.key});
 

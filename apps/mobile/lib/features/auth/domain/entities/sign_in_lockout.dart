@@ -1,8 +1,4 @@
-/// "3 wrong tries, then a 15-minute pause" (design v0.1, M04).
-///
-/// Client-side only for now: Supabase has IP rate limits, not a per-account
-/// lockout, and where to enforce it on the server is still open (SA-FE §16).
-/// A client counter is bypassable, so treat this as UX, not security.
+/// Client-side only, so it is UX, not security: a client counter is bypassable.
 class SignInLockout {
   const SignInLockout({this.failures = 0, this.lockedUntil});
 
@@ -24,7 +20,6 @@ class SignInLockout {
         : SignInLockout(failures: next);
   }
 
-  /// After the pause ends the counter starts again.
   SignInLockout refresh(DateTime now) =>
       lockedUntil != null && !isLocked(now) ? const SignInLockout() : this;
 }

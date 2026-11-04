@@ -42,12 +42,9 @@ class EmailAuthState {
   final bool busy;
   final EmailAuthError? error;
 
-  /// One-off confirmation, such as "reset link sent".
   final String? notice;
 }
 
-/// Where the screen should go after a successful call. Sign-in success is
-/// left to the gates (session change → initialize → M05 or Discover).
 enum EmailAuthOutcome { none, checkInbox }
 
 class EmailAuthController extends Notifier<EmailAuthState> {
@@ -152,7 +149,6 @@ final emailAuthControllerProvider =
       EmailAuthController.new,
     );
 
-/// M04c resend with the 45 s timer.
 class ResendController extends Notifier<ResendState> {
   static const cooldown = Duration(seconds: 45);
 

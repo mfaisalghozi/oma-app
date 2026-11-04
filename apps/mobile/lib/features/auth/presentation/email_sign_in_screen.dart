@@ -13,8 +13,6 @@ import '../../../core/widgets/oma_scaffold.dart';
 import '../application/email_auth_controller.dart';
 import '../domain/entities/password_rules.dart';
 
-/// M04 Sign in and M04b Create account: two tabs on one screen. Switching
-/// tabs swaps the route in place (go, not push) and keeps what was typed.
 class EmailSignInScreen extends ConsumerStatefulWidget {
   const EmailSignInScreen({this.createAccount = false, super.key});
 

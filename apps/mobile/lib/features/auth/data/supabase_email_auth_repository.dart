@@ -4,13 +4,11 @@ import '../../../core/errors/failure.dart';
 import '../domain/repositories/email_auth_repository.dart';
 import 'auth_error_mapper.dart';
 
-/// Email + password with a confirmation link (design v0.1).
 class SupabaseEmailAuthRepository implements EmailAuthRepository {
   SupabaseEmailAuthRepository(this._auth, {required this.redirectUrl});
 
   final sb.GoTrueClient _auth;
 
-  /// Deep link the confirmation and reset emails open (`/auth/callback`).
   final String redirectUrl;
 
   @override

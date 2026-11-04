@@ -11,8 +11,6 @@ import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/email_auth_repository.dart';
 
-/// The only place the auth interfaces are bound to implementations.
-/// Tests override these providers with fakes.
 final supabaseAuthRepositoryProvider = Provider<SupabaseAuthRepository>(
   (ref) => SupabaseAuthRepository(Supabase.instance.client.auth),
 );
@@ -34,11 +32,8 @@ final emailAuthRepositoryProvider = Provider<EmailAuthRepository>(
 
 final lockoutStoreProvider = Provider<LockoutStore>((ref) => LockoutStore());
 
-/// Injectable clock for the lockout and resend timers.
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
-/// Email address of a sign-up waiting for its confirmation link (M04c), or
-/// null. Set by the email flow; read by the gates.
 final pendingEmailConfirmationProvider =
     NotifierProvider<PendingEmailConfirmation, String?>(
       PendingEmailConfirmation.new,
