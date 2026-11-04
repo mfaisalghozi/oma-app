@@ -5,20 +5,15 @@ import 'auth_providers.dart';
 
 enum SocialProvider { google, apple }
 
-/// M02 state: which provider is in flight and the last error, if any.
 class SignInState {
   const SignInState({this.busy, this.error, this.last});
 
   final SocialProvider? busy;
   final AuthFailure? error;
 
-  /// The provider of the last attempt, for Try again.
   final SocialProvider? last;
 }
 
-/// Runs a native sign-in. On success the Supabase session changes, the
-/// SessionController calls initialize and the gates route the user (new user
-/// to M05, returning user to Discover); this controller does not navigate.
 class SignInController extends Notifier<SignInState> {
   @override
   SignInState build() => const SignInState();

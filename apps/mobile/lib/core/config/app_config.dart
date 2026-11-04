@@ -1,10 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Build-time configuration, passed with
-/// `flutter run --dart-define-from-file=config/dev.json`.
-///
-/// Feature flags (such as `AUTH_PHONE_ENABLED`) live here until Online config
-/// (P2) exists, so a switch is per release, not per user.
 class AppConfig {
   const AppConfig({
     required this.flavor,
@@ -43,20 +38,16 @@ class AppConfig {
   final String supabaseUrl;
   final String supabasePublishableKey;
 
-  /// Go API base URL, without the `/v1` prefix.
   final String apiBaseUrl;
 
-  /// Deep link Supabase sends confirmation and reset links to (M04c).
   final String authRedirectUrl;
 
-  /// Shows "Continue with phone number" on M02. Off until an SMS provider is
-  /// chosen (phone OTP is a cut candidate, E2-05).
+  /// Off until an SMS provider is chosen.
   final bool authPhoneEnabled;
 
   final String googleWebClientId;
   final String googleIosClientId;
 
-  /// Public web (W01 to W04). Terms and Privacy live at W03.
   /// TODO(web): confirm the domain; `oma.app` is a placeholder.
   final String webBaseUrl;
 

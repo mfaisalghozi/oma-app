@@ -12,7 +12,6 @@ import '../../../core/widgets/oma_scaffold.dart';
 import '../application/auth_providers.dart';
 import '../application/sign_in_controller.dart';
 
-/// M02 sign-in hub: one screen for new and returning users.
 class SignInScreen extends ConsumerWidget {
   const SignInScreen({super.key});
 
@@ -61,8 +60,7 @@ class SignInScreen extends ConsumerWidget {
                   : () => controller.signIn(SocialProvider.apple),
             ),
           ],
-          // Phone OTP (M03, E2-05) is out of this scope and hidden behind the
-          // AUTH_PHONE_ENABLED build flag until an SMS provider is chosen.
+          // Phone OTP (M03) stays hidden until an SMS provider is chosen.
           if (config.authPhoneEnabled) ...[
             const SizedBox(height: 12),
             OmaButton.secondary(

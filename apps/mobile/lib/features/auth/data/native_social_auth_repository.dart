@@ -12,7 +12,6 @@ import '../../../core/errors/failure.dart';
 import '../domain/repositories/social_auth_repository.dart';
 import 'auth_error_mapper.dart';
 
-/// Native sheets (no browser pop-up), then `signInWithIdToken` on Supabase.
 class NativeSocialAuthRepository implements SocialAuthRepository {
   NativeSocialAuthRepository(this._auth, this._config, {GoogleSignIn? google})
     : _google = google ?? GoogleSignIn.instance;
