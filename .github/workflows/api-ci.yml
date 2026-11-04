@@ -1,0 +1,61 @@
+name: API CI
+
+# gofmt, vet, test and build the Go API + worker.
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "libs/contracts/**"
+      - ".github/workflows/api-ci.yml"
+  push:
+    branches: [main, "release/**"]
+    paths:
+      - "apps/api/**"
+      - "libs/contracts/**"
+      - ".github/workflows/api-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  check:
+    name: Format, vet, test, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.mod
+
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::Run 'go fmt ./...' on:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Build
+        run: |
+          go build -o ../../dist/apps/api/api ./cmd/api
+          go build -o ../../dist/apps/api/worker ./cmd/worker
