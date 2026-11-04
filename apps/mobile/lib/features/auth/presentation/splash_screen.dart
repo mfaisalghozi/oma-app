@@ -6,9 +6,6 @@ import '../../../core/widgets/oma_error_view.dart';
 import '../application/session_controller.dart';
 import 'widgets/splash_intro.dart';
 
-/// M00. The native splash shows the static icon while Flutter starts; this
-/// screen continues from the same frame with the intro while the session
-/// restores. The gates leave as soon as the session resolves.
 class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
 

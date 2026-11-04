@@ -61,7 +61,6 @@ void main() {
         resolveStartRoute(location: Routes.checkInbox, gate: gate),
         isNull,
       );
-      // "Use a different email" goes back to M04b.
       expect(
         resolveStartRoute(location: Routes.signUpEmail, gate: gate),
         isNull,
@@ -85,7 +84,6 @@ void main() {
       expect(resolveStartRoute(location: Routes.splash, gate: gate), resume);
       expect(resolveStartRoute(location: Routes.consent, gate: gate), resume);
       expect(resolveStartRoute(location: Routes.discover, gate: gate), resume);
-      // Moving between steps is allowed.
       expect(
         resolveStartRoute(location: '/onboarding/photos', gate: gate),
         isNull,

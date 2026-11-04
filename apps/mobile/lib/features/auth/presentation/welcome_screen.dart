@@ -7,8 +7,6 @@ import '../../../core/widgets/brand.dart';
 import '../../../core/widgets/legal_links.dart';
 import '../../../core/widgets/oma_button.dart';
 
-/// M01 Welcome, for signed-out users. Both CTAs open the M02 sign-in hub,
-/// which serves new and returning users.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 

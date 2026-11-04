@@ -4,8 +4,7 @@ import '../theme/oma_colors.dart';
 
 enum OmaBannerTone { error, info }
 
-/// Banner from the components board: never colour alone, always icon plus
-/// words.
+/// Never colour alone: always icon plus words.
 class OmaBanner extends StatelessWidget {
   const OmaBanner({
     required this.message,

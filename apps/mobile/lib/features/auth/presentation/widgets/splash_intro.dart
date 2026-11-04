@@ -5,12 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/oma_colors.dart';
 import '../../../../core/widgets/brand.dart';
 
-/// M00 intro from the v0.1 "Splash animation" board: the whale icon pops in,
-/// a ring pulses out, four bubbles rise and "Ocean Match" fades in.
-///
-/// The whole sequence is capped at [duration] (1.5 s). It never delays
-/// navigation: the gates leave the splash as soon as the session resolves,
-/// which cuts it short. With reduce motion on it shows the final frame.
+/// Capped at [duration]; the gates cut it short once the session resolves.
 class SplashIntro extends StatefulWidget {
   const SplashIntro({
     this.duration = const Duration(milliseconds: 1500),

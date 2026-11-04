@@ -22,7 +22,6 @@ void main() {
     await pumpScreen(tester, const Scaffold(body: SplashIntro()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1500));
-    // The tagline (last to finish) is fully in.
     final tag = tester.widget<Opacity>(
       find
           .ancestor(
@@ -63,7 +62,6 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(overrides: signedOut, child: const OmaApp()),
     );
-    // One frame for the splash, then the signed-out session resolves.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.byType(WelcomeScreen), findsOneWidget);
