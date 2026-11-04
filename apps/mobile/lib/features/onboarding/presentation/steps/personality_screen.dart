@@ -14,11 +14,9 @@ import '../widgets/master_chips.dart';
 import '../widgets/option_picker.dart';
 import '../widgets/step_frame.dart';
 
-/// Ambition limit from design v0.1 and the SA-FE. The BE allows 500; the
-/// stricter client limit is safe either way.
+/// Design v0.1 says 80; the BE allows 500. The stricter client limit is safe.
 const ambitionMaxLength = 80;
 
-/// M08 Personality and hobbies.
 class PersonalityScreen extends StatelessWidget {
   const PersonalityScreen({super.key});
 
@@ -160,8 +158,6 @@ class _PersonalityFormState extends ConsumerState<_PersonalityForm> {
   }
 }
 
-/// One category (Outdoor, Indoor, Gaming) with its first page of hobbies and
-/// a More chip when there are more.
 class _HobbyGroup extends ConsumerWidget {
   const _HobbyGroup({
     required this.category,
@@ -217,7 +213,6 @@ class _HobbyGroup extends ConsumerWidget {
   }
 }
 
-/// Hobbies picked through search that aren't in the first pages above.
 class _OtherPicks extends ConsumerWidget {
   const _OtherPicks({required this.selected, required this.onToggle});
 

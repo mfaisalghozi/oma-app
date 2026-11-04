@@ -15,20 +15,8 @@ import 'onboarding_draft_controller.dart';
 
 const maxPhotos = 6;
 
-enum TileStatus {
-  checking,
+enum TileStatus { checking, checkFailed, rejected, uploading, uploaded, failed }
 
-  /// The on-device check failed to run (model, scan error). Try again.
-  checkFailed,
-  rejected,
-  uploading,
-  uploaded,
-
-  /// Upload failed or was interrupted. Retry reuses the same photo_id.
-  failed,
-}
-
-/// One tile of the M09 grid.
 @immutable
 class PhotoTile {
   const PhotoTile({
@@ -40,14 +28,12 @@ class PhotoTile {
     this.inDraft = false,
   });
 
-  /// Stable id for the tile: the local file path it started from.
   final String key;
   final TileStatus status;
   final String? localPath;
   final String? photoId;
   final PhotoRejectReason? reason;
 
-  /// Draft photos can be reordered; checking/rejected tiles can't.
   final bool inDraft;
 }
 
@@ -60,16 +46,12 @@ class PhotoGridState {
     this.error,
   });
 
-  /// Tiles not (yet) in the draft: checking, check failed, rejected.
   final List<PhotoTile> extras;
 
-  /// Local paths uploading right now.
   final Set<String> uploading;
 
-  /// Bytes of uploaded photos whose temp file was deleted, by photo id.
   final Map<String, Uint8List> thumbs;
 
-  /// Last pick / delete error, shown once as a banner.
   final Failure? error;
 
   PhotoGridState copyWith({
@@ -85,7 +67,6 @@ class PhotoGridState {
     error: clearError ? null : error ?? this.error,
   );
 
-  /// Grid order: draft photos (first is Main), then extras.
   List<PhotoTile> tiles(OnboardingDraft draft) => [
     for (final p in draft.photos)
       PhotoTile(
@@ -106,9 +87,6 @@ class PhotoGridState {
       maxPhotos - draft.photos.length - extras.length;
 }
 
-/// M09 pipeline: pick → compress (~1080 px) → on-device check → reserve a
-/// slot → upload straight to Supabase Storage. Photos that fail the check
-/// never leave the phone.
 class PhotoGridController extends Notifier<PhotoGridState> {
   /// Upload tokens, in memory only (BE doc: never persisted).
   final _slots = <String, UploadSlot>{};
@@ -120,7 +98,6 @@ class PhotoGridController extends Notifier<PhotoGridState> {
       ref.read(onboardingDraftProvider.notifier);
   OnboardingDraft? get _current => ref.read(onboardingDraftProvider).value;
 
-  /// Starts the model download early so the first check is quick.
   Future<void> prepare() async {
     try {
       await ref.read(photoScannerProvider).prepare();
@@ -148,7 +125,6 @@ class PhotoGridController extends Notifier<PhotoGridState> {
     }
   }
 
-  /// Replaces a rejected or broken tile with a newly picked photo.
   Future<void> replace(String key) async {
     await remove(key);
     await add();
@@ -254,8 +230,7 @@ class PhotoGridController extends Notifier<PhotoGridState> {
     }
   }
 
-  /// Reuses the photo_id already reserved for [path], refreshing its token
-  /// when needed, so a retry never reserves a second slot.
+  /// Reuses the reserved photo_id so a retry never reserves a second slot.
   Future<UploadSlot> _slotFor(String path) async {
     final repo = ref.read(photoRepositoryProvider);
     final cached = _slots[path];
@@ -305,7 +280,6 @@ class PhotoGridController extends Notifier<PhotoGridState> {
     );
   }
 
-  /// Moves a draft photo; position 0 is the main photo.
   Future<void> move(String key, int to) => _draft.edit((d) {
     final photos = [...d.photos];
     final from = photos.indexWhere((p) => p.localPath == key);

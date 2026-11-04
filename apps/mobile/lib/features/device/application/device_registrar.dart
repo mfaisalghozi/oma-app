@@ -20,7 +20,6 @@ final devicePlatformProvider = Provider<DevicePlatform>(
   (ref) => currentPlatform(),
 );
 
-/// Remembers that a registration is still owed, across launches.
 abstract interface class PendingFlag {
   Future<bool> get();
   Future<void> set(bool value);
@@ -41,10 +40,7 @@ final pushPendingFlagProvider = Provider<PendingFlag>(
   (ref) => PrefsPendingFlag(),
 );
 
-/// Registers the push token with `POST /v1/devices`.
-///
-/// Never blocks onboarding: a failure only sets a flag, and [retryPending]
-/// tries again on the next start once the user is signed in.
+/// Never blocks onboarding: a failure sets a flag and [retryPending] retries.
 class DeviceRegistrar {
   DeviceRegistrar(this._ref);
 
@@ -83,7 +79,6 @@ class DeviceRegistrar {
     }
   }
 
-  /// Best effort; never throws.
   Future<void> retryPending() async {
     try {
       if (await _ref.read(pushPendingFlagProvider).get()) await register();

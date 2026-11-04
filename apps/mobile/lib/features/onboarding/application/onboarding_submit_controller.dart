@@ -17,7 +17,6 @@ final onboardingRepositoryProvider = Provider<OnboardingRepository>(
   (ref) => ApiOnboardingRepository(ref.watch(apiClientProvider)),
 );
 
-/// The three M11b lines, in order.
 enum SetupPhase { saving, photos, finding }
 
 enum PhaseStatus { waiting, running, done, failed }
@@ -37,7 +36,6 @@ final class SubmitRunning extends SubmitState {
   final SetupPhase phase;
 }
 
-/// M11c. The draft is untouched; Try again repeats the same call.
 final class SubmitFailed extends SubmitState {
   const SubmitFailed(this.phase, this.error);
 
@@ -45,7 +43,6 @@ final class SubmitFailed extends SubmitState {
   final Failure error;
 }
 
-/// 422: send the user to the step that owns the field, answers kept.
 final class SubmitNeedsFix extends SubmitState {
   const SubmitNeedsFix(this.step, this.fields);
 
@@ -68,7 +65,6 @@ extension SubmitPhases on SubmitState {
   };
 }
 
-/// M11b: one `POST /v1/me/onboarding` with the whole draft.
 class OnboardingSubmitController extends Notifier<SubmitState> {
   @override
   SubmitState build() => const SubmitIdle();
@@ -141,7 +137,6 @@ class OnboardingSubmitController extends Notifier<SubmitState> {
     }
   }
 
-  /// Retries photos that aren't uploaded yet. Fails if none is uploaded.
   Future<void> _finishUploads() async {
     final grid = ref.read(photoGridProvider.notifier);
     final pending = [

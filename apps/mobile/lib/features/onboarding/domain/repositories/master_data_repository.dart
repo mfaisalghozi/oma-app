@@ -1,7 +1,6 @@
 import '../entities/master_option.dart';
 
 abstract interface class MasterDataRepository {
-  /// One page of [type], optionally filtered by [query] or [categoryId].
   Future<MasterDataPage> page(
     MasterDataType type, {
     String? query,

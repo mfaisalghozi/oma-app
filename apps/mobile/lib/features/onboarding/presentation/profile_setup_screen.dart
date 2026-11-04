@@ -13,8 +13,6 @@ import '../../auth/application/session_controller.dart';
 import '../application/onboarding_submit_controller.dart';
 import '../domain/entities/onboarding_step.dart';
 
-/// M11b "Setting up your profile" and M11c "We couldn't finish your
-/// profile". Submits on open; Try again repeats the same call.
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
 

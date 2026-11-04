@@ -5,8 +5,6 @@ import '../../../core/widgets/oma_button.dart';
 import '../../../core/widgets/placeholder_screen.dart';
 import '../../auth/application/session_controller.dart';
 
-/// M12 Discover lands in its own feature; this stands in for it so the gates
-/// have a destination.
 class DiscoverScreen extends ConsumerWidget {
   const DiscoverScreen({super.key});
 

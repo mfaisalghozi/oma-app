@@ -288,7 +288,6 @@ void main() {
   });
 }
 
-/// Opens the birthdate picker, switches to typing and enters [mmddyyyy].
 Future<void> _pickDate(WidgetTester tester, String mmddyyyy) async {
   await tester.tap(find.byIcon(Icons.calendar_today_outlined));
   await tester.pumpAndSettle();

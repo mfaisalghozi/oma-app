@@ -90,7 +90,6 @@ class ImagePickerPhotoPicker implements PhotoPicker {
   }
 }
 
-/// Native compression (runs off the UI thread in the plugin).
 class NativePhotoCompressor implements PhotoCompressor {
   static const _edge = 1080;
 

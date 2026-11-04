@@ -25,7 +25,6 @@ import '../features/onboarding/presentation/steps/photos_screen.dart';
 import '../features/safety/presentation/restricted_screen.dart';
 import 'routes.dart';
 
-/// Snapshot of the gate inputs from the providers.
 GateState readGateState(Ref ref) {
   final session = ref.read(sessionControllerProvider);
   final value = session.value;
@@ -42,7 +41,7 @@ GateState readGateState(Ref ref) {
     SignedIn(:final account) => switch (ref.read(
       onboardingResumePathProvider,
     )) {
-      // The local draft decides the resume step; wait for it to load.
+      // Wait for the draft so the resume step is right.
       null when account.nextAction == NextAction.completeOnboarding =>
         const GateLoading(),
       final path => GateSignedIn(
@@ -54,7 +53,6 @@ GateState readGateState(Ref ref) {
   };
 }
 
-/// Re-runs the redirect whenever a gate input changes.
 class _GateRefresh extends ChangeNotifier {
   _GateRefresh(Ref ref) {
     ref
@@ -99,8 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.checkInbox,
         builder: (_, _) => const CheckInboxScreen(),
       ),
-      // The confirmation link lands here; supabase_flutter turns it into a
-      // session and the gates move on from the splash.
+      // supabase_flutter turns the confirmation link into a session.
       GoRoute(
         path: Routes.authCallback,
         builder: (_, _) => const SplashScreen(),

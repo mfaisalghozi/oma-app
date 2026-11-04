@@ -1,6 +1,5 @@
 import 'package:meta/meta.dart';
 
-/// `GET /v1/master-data` types (BE doc §8.4).
 enum MasterDataType {
   gender('gender'),
   pronoun('pronoun'),
@@ -38,7 +37,6 @@ class MasterOption {
   final String label;
   final String? code;
 
-  /// Hobbies only.
   final String? categoryId;
 
   @override

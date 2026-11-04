@@ -20,8 +20,6 @@ final photoCompressorProvider = Provider<PhotoCompressor>(
   (ref) => NativePhotoCompressor(),
 );
 
-/// Signed read URLs for photos whose local copy is gone (after an app
-/// restart). Loaded on demand.
 final photoSignedUrlsProvider = FutureProvider.autoDispose<Map<String, String>>(
   (ref) => ref.watch(photoRepositoryProvider).signedUrls(),
 );

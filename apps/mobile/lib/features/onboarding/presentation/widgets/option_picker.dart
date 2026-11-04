@@ -9,8 +9,6 @@ import '../../domain/entities/master_option.dart';
 import 'master_chips.dart';
 import 'tap_field.dart';
 
-/// Read-only field that opens a list of a short master-data type
-/// (Religion, Personality). Optional fields get a "Prefer not to say" row.
 class OptionPickerField extends ConsumerWidget {
   const OptionPickerField({
     required this.label,
@@ -108,8 +106,6 @@ class _OptionList extends StatelessWidget {
   }
 }
 
-/// Bottom sheet that searches and pages through a long list (universities,
-/// all hobbies). Returns the tapped option, or null.
 class SearchPickerSheet extends ConsumerStatefulWidget {
   const SearchPickerSheet({
     required this.title,

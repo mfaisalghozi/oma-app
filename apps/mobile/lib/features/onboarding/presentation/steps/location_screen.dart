@@ -16,8 +16,6 @@ import '../../domain/entities/onboarding_step.dart';
 import '../widgets/draft_builder.dart';
 import '../widgets/step_frame.dart';
 
-/// M10 Find people near you, and the "Location is off" state with the city
-/// picker.
 class LocationScreen extends StatelessWidget {
   const LocationScreen({super.key});
 
@@ -60,7 +58,6 @@ class _LocationBodyState extends ConsumerState<_LocationBody>
     super.dispose();
   }
 
-  /// Back from phone settings with location now on: take the fix.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _denied) {

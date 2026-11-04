@@ -1,5 +1,4 @@
-/// M10 fallback when location is off. City centres are client-side for now:
-/// the BE doc has no cities endpoint. Move to master data when it does.
+/// Client-side until the BE has a cities endpoint.
 class City {
   const City(this.name, this.latitude, this.longitude);
 

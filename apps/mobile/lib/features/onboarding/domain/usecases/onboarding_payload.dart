@@ -1,9 +1,7 @@
 import '../entities/onboarding_draft.dart';
 import '../entities/onboarding_step.dart';
 
-/// Builds the `POST /v1/me/onboarding` body (BE doc §8.6) from the draft.
-/// Optional fields left empty are omitted. Only uploaded photos are sent,
-/// with 1-based positions in grid order (first is main).
+/// Empty optional fields are omitted; only uploaded photos are sent, 1-based.
 Map<String, Object?> onboardingPayload(OnboardingDraft d) {
   String? text(String? s) => (s == null || s.trim().isEmpty) ? null : s.trim();
   final photos = d.photos.where((p) => p.isUploaded).toList();

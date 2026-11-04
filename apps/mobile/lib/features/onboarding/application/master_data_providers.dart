@@ -9,9 +9,7 @@ final masterDataRepositoryProvider = Provider<MasterDataRepository>(
   (ref) => ApiMasterDataRepository(ref.watch(apiClientProvider)),
 );
 
-/// Every option of a short list (gender, show_me, looking_for, religion,
-/// personality, hobby_category). Cached for the app session: the provider is
-/// not auto-disposed, so it loads once; `ref.invalidate` retries.
+/// Not auto-disposed: loads once per app session; `ref.invalidate` retries.
 final masterOptionsProvider =
     FutureProvider.family<List<MasterOption>, MasterDataType>((
       ref,
@@ -29,8 +27,6 @@ final masterOptionsProvider =
       return items;
     }, retry: (_, _) => null);
 
-/// First page of hobbies per category, for the grouped chips on M08. More
-/// are reached through the hobby search sheet.
 final hobbiesByCategoryProvider = FutureProvider.family<MasterDataPage, String>(
   (ref, categoryId) => ref
       .watch(masterDataRepositoryProvider)
@@ -38,8 +34,6 @@ final hobbiesByCategoryProvider = FutureProvider.family<MasterDataPage, String>(
   retry: (_, _) => null,
 );
 
-/// Labels of options the user picked, kept for the session so chips picked
-/// from search still show their names. Keyed by option id.
 class PickedLabels extends Notifier<Map<String, String>> {
   @override
   Map<String, String> build() => const {};

@@ -9,8 +9,6 @@ import '../../application/onboarding_draft_controller.dart';
 import '../../application/onboarding_resume.dart';
 import '../../domain/entities/onboarding_step.dart';
 
-/// Shared frame for the counted steps M06 to M11: "Step n of 6", back to the
-/// previous step, and a pinned Next that saves the draft before moving on.
 class StepFrame extends ConsumerWidget {
   const StepFrame({
     required this.step,
@@ -31,10 +29,8 @@ class StepFrame extends ConsumerWidget {
   final bool canContinue;
   final String nextLabel;
 
-  /// Overrides the default "save and go to the next step".
   final Future<void> Function()? onNext;
 
-  /// Extra line under the button (for example "Maybe later").
   final Widget? footer;
 
   static OnboardingStep? previous(OnboardingStep step) =>
@@ -79,7 +75,6 @@ class StepFrame extends ConsumerWidget {
   }
 }
 
-/// Section label used between fields (Looking for, I am, …).
 class StepLabel extends StatelessWidget {
   const StepLabel(this.text, {this.trailing, super.key});
 

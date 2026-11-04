@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'oma_colors.dart';
 
-/// Builds the Material theme from OMA tokens. Sizes follow the v0.1
-/// "Components and edge states" board: 52 px fully rounded buttons, 52 px
-/// fields with a 14 px radius, 40 px pill chips.
 abstract final class OmaTheme {
   static const fontFamily = 'Nunito';
 
@@ -107,9 +104,7 @@ abstract final class OmaTheme {
           color: color,
         );
     return TextTheme(
-      // M01 hero headline.
       displaySmall: s(34, FontWeight.w800, 1.15),
-      // Screen titles (M02 to M11).
       headlineSmall: s(24, FontWeight.w700, 1.25),
       titleLarge: s(22, FontWeight.w700, 1.25),
       titleMedium: s(16, FontWeight.w700),

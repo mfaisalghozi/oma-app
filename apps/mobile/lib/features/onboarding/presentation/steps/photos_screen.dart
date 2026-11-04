@@ -21,7 +21,6 @@ final photoThumbBuilderProvider = Provider<Widget Function(PhotoTile tile)>(
       (tile) => PhotoThumb(tile: tile),
 );
 
-/// M09 Add your photos: up to 6, first is Main, hold and drag to reorder.
 class PhotosScreen extends StatelessWidget {
   const PhotosScreen({super.key});
 
@@ -374,8 +373,6 @@ class _AddTile extends StatelessWidget {
   }
 }
 
-/// The photo itself: memory bytes after upload, the local file before, or
-/// the signed URL after a restart.
 class PhotoThumb extends ConsumerWidget {
   const PhotoThumb({required this.tile, super.key});
 
