@@ -16,6 +16,9 @@ Future<void> loadAppFonts() async {
     nunito.addFont(rootBundle.load('assets/fonts/Nunito-$w.ttf'));
   }
   await nunito.load();
+  final icons = FontLoader('MaterialIcons')
+    ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+  await icons.load();
   _fontsLoaded = true;
 }
 
