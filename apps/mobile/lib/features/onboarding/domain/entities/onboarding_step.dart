@@ -1,5 +1,3 @@
-/// The six counted profile steps (M06 to M11) plus the M11b/M11c setup screen.
-/// The path segment is what goes in `/onboarding/:step`.
 enum OnboardingStep {
   basics('basics', 1), // M06
   about('about', 2), // M07
@@ -13,7 +11,6 @@ enum OnboardingStep {
 
   final String path;
 
-  /// "Step n of 6"; null for the setup screen.
   final int? number;
 
   static const counted = 6;

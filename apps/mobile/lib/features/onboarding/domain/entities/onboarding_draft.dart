@@ -2,12 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'onboarding_step.dart';
 
-/// Every answer from M06 to M11, kept on the phone until the single
-/// `POST /v1/me/onboarding` (the backend takes no per-step saves).
-///
-/// Stored encrypted (Keychain / Keystore) by [OnboardingDraftStore]. Holds
-/// sensitive data under UU PDP, so [toString] never prints field values and
-/// nothing here goes to logs or Crashlytics.
+/// Holds sensitive data (UU PDP): [toString] never prints field values.
 @immutable
 class OnboardingDraft {
   const OnboardingDraft({
@@ -61,43 +56,34 @@ class OnboardingDraft {
     submitKey: j['submit_key'] as String?,
   );
 
-  /// Owner. A draft left by another account on this phone is discarded.
   final String userId;
 
-  // M06 The basics
   final String? fullName;
   final DateTime? birthdate;
   final String? genderId;
   final String? pronounId;
   final String? showMeOptionId;
 
-  // M07 About you
   final String? bio;
   final List<String> lookingForIds;
   final int? heightCm;
   final int? weightKg;
   final String? universityId;
 
-  /// Shown on M07 after a resume without re-querying the university list.
   final String? universityName;
 
-  // M08 Personality and hobbies
   final String? ambition;
   final String? religionId;
   final String? personalityTypeId;
   final List<String> hobbyIds;
 
-  // M09 Photos, in display order (first is the main photo).
   final List<DraftPhoto> photos;
 
-  // M10 Location, rounded on the device before it is stored.
   final DraftLocation? location;
 
-  // M11 Allowed or "Maybe later": either way the step is done.
   final bool notificationsDecided;
 
-  /// `Idempotency-Key` for the final submit. Created once and reused by
-  /// every retry so M11c's Try again never creates a second profile.
+  /// Reused by every retry so Try again never creates a second profile.
   final String? submitKey;
 
   bool get basicsDone =>
@@ -118,8 +104,6 @@ class OnboardingDraft {
 
   bool get locationDone => location != null;
 
-  /// First step the user still has to finish; [OnboardingStep.setup] once
-  /// everything is answered.
   OnboardingStep get firstUnfinished {
     if (!basicsDone) return OnboardingStep.basics;
     if (!aboutDone) return OnboardingStep.about;
@@ -130,7 +114,7 @@ class OnboardingDraft {
     return OnboardingStep.setup;
   }
 
-  /// Copies with changed fields. Pass a [Nullable] to clear an optional one.
+  /// Pass a [Nullable] to clear an optional field.
   OnboardingDraft copyWith({
     Nullable<String>? fullName,
     Nullable<DateTime>? birthdate,
@@ -219,7 +203,6 @@ class OnboardingDraft {
       v is String ? DateTime.tryParse(v) : null;
 }
 
-/// `YYYY-MM-DD`, the format `POST /v1/me/onboarding` expects.
 String _dateString(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'
@@ -235,16 +218,9 @@ class Nullable<T> {
   final T? value;
 }
 
-enum DraftPhotoStatus {
-  /// Picked and passed the on-device scan; not uploaded yet.
-  pending,
-  uploading,
-  uploaded,
-  failed,
-}
+enum DraftPhotoStatus { pending, uploading, uploaded, failed }
 
-/// One M09 tile. [photoId] is the slot reserved with
-/// `POST /v1/photos/upload-urls`; a retry reuses it so no duplicate is made.
+/// [photoId] is reused on retry so no duplicate slot is made.
 @immutable
 class DraftPhoto {
   const DraftPhoto({
@@ -287,8 +263,7 @@ class DraftPhoto {
 
 enum LocationSource { gps, city }
 
-/// Coordinates already rounded on the device (M10). For a picked city these
-/// are the city centre.
+/// Rounded on the device; the city centre for a picked city.
 @immutable
 class DraftLocation {
   const DraftLocation({

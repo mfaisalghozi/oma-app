@@ -13,7 +13,6 @@ import '../widgets/option_picker.dart';
 import '../widgets/step_frame.dart';
 import '../widgets/tap_field.dart';
 
-/// M07 About you: bio, looking for, height, weight, education.
 class AboutYouScreen extends StatelessWidget {
   const AboutYouScreen({super.key});
 

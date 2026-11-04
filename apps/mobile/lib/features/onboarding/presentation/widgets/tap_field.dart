@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/oma_colors.dart';
 
-/// Field-looking button for values picked from a sheet or date picker
-/// (Birthdate, Education, Religion, Personality). Same look as `OmaField`.
 class TapField extends StatelessWidget {
   const TapField({
     required this.label,

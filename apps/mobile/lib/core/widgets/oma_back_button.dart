@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/oma_colors.dart';
 
-/// 44 px round outlined back button used on every pushed screen.
 class OmaBackButton extends StatelessWidget {
   const OmaBackButton({this.onPressed, super.key});
 

@@ -6,12 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../theme/oma_colors.dart';
 
-/// Opens a legal or help page in the in-app browser.
 Future<void> openExternalPage(Uri url) async {
   await launchUrl(url, mode: LaunchMode.inAppBrowserView);
 }
 
-/// "… agree to our Terms and Privacy Policy." with tappable links (M01, M04b).
 class LegalLinksText extends ConsumerStatefulWidget {
   const LegalLinksText({required this.prefix, super.key});
 

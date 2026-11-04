@@ -5,8 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../domain/entities/onboarding_draft.dart';
 import '../domain/repositories/onboarding_draft_store.dart';
 
-/// Keeps the draft in the Keychain (iOS) or Keystore-encrypted storage
-/// (Android) as one JSON value.
 class SecureOnboardingDraftStore implements OnboardingDraftStore {
   SecureOnboardingDraftStore([FlutterSecureStorage? storage])
     : _storage = storage ?? const FlutterSecureStorage();
