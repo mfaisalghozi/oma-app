@@ -6,6 +6,7 @@ import '../core/api/api_client.dart';
 import '../core/config/app_config.dart';
 import '../core/storage/secure_session_storage.dart';
 import '../features/auth/application/auth_providers.dart';
+import '../features/auth/application/session_controller.dart';
 import 'app.dart';
 
 /// Initialises SDKs, binds providers and runs the app.
@@ -36,6 +37,10 @@ Future<void> bootstrap(AppConfig config) async {
         appConfigProvider.overrideWithValue(config),
         accessTokenSourceProvider.overrideWith(
           (ref) => ref.watch(supabaseAuthRepositoryProvider),
+        ),
+        consentRequiredHandlerProvider.overrideWith(
+          (ref) =>
+              () => ref.read(sessionControllerProvider.notifier).refresh(),
         ),
       ],
       child: const OmaApp(),

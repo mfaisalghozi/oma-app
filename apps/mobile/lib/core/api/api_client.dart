@@ -26,6 +26,13 @@ final accessTokenSourceProvider = Provider<AccessTokenSource>(
   (ref) => throw UnimplementedError('accessTokenSourceProvider not bound'),
 );
 
+/// Called when any endpoint answers `CONSENT_REQUIRED` (for example after the
+/// Terms change). The app binds it to a session refresh, so the gates send
+/// the user back to M05 from wherever they are.
+final consentRequiredHandlerProvider = Provider<Future<void> Function()>(
+  (ref) => () async {},
+);
+
 /// Thin wrapper over Dio for the Go API (`/v1`).
 ///
 /// It unwraps the `{"data": ...}` envelope and turns every error into a
@@ -165,6 +172,24 @@ class AuthInterceptor extends Interceptor {
   }
 }
 
+/// Fires [onConsentRequired] on a `CONSENT_REQUIRED` error, then passes the
+/// error on unchanged so the caller still fails.
+class ConsentRequiredInterceptor extends Interceptor {
+  ConsentRequiredInterceptor(this.onConsentRequired);
+
+  final Future<void> Function() onConsentRequired;
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final body = err.response?.data;
+    final error = body is Map ? body['error'] : null;
+    if (error is Map && error['code'] == ApiErrorCode.consentRequired) {
+      unawaited(onConsentRequired());
+    }
+    handler.next(err);
+  }
+}
+
 /// Adds an `Idempotency-Key` to every POST so a retried like, message,
 /// purchase or onboarding submit is never applied twice. Callers that retry a
 /// specific operation pass their own stable key (see [ApiClient.post]).
@@ -186,6 +211,7 @@ class IdempotencyInterceptor extends Interceptor {
 Dio buildApiDio({
   required AppConfig config,
   required AccessTokenSource tokens,
+  Future<void> Function()? onConsentRequired,
 }) {
   final dio = Dio(
     BaseOptions(
@@ -200,6 +226,8 @@ Dio buildApiDio({
   dio.interceptors.addAll([
     AuthInterceptor(tokens, dio),
     IdempotencyInterceptor(),
+    if (onConsentRequired != null)
+      ConsentRequiredInterceptor(onConsentRequired),
   ]);
   return dio;
 }
@@ -208,6 +236,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = buildApiDio(
     config: ref.watch(appConfigProvider),
     tokens: ref.watch(accessTokenSourceProvider),
+    onConsentRequired: ref.watch(consentRequiredHandlerProvider),
   );
   ref.onDispose(dio.close);
   return ApiClient(dio);
