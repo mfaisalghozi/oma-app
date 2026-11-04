@@ -9,9 +9,6 @@ import '../features/auth/application/auth_providers.dart';
 import '../features/auth/application/session_controller.dart';
 import 'app.dart';
 
-/// Initialises SDKs, binds providers and runs the app.
-///
-/// Firebase (push, Crashlytics) joins here once the Firebase projects exist.
 Future<void> bootstrap(AppConfig config) async {
   WidgetsFlutterBinding.ensureInitialized();
 

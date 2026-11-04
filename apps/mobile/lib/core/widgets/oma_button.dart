@@ -4,7 +4,6 @@ import '../theme/oma_colors.dart';
 
 enum OmaButtonVariant { primary, secondary, text }
 
-/// 52 px, fully rounded button from the v0.1 components board.
 class OmaButton extends StatelessWidget {
   const OmaButton({
     required this.label,
@@ -36,7 +35,6 @@ class OmaButton extends StatelessWidget {
 
   final String label;
 
-  /// Null disables the button.
   final VoidCallback? onPressed;
   final OmaButtonVariant variant;
   final Widget? icon;

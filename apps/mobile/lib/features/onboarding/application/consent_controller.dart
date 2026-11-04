@@ -23,7 +23,6 @@ class ConsentState {
   final Set<String> ticked;
   final bool saving;
 
-  /// Last save error. Ticks are kept.
   final Failure? error;
 
   bool get canContinue =>

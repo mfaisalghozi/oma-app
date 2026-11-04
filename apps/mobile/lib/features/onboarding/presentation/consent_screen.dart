@@ -12,11 +12,7 @@ import '../../../core/widgets/oma_scaffold.dart';
 import '../application/consent_controller.dart';
 import '../domain/entities/consent_document.dart';
 
-/// M05 "Your data, your call" (UU PDP explicit consent).
-///
-/// Rows come from `GET /v1/consents/documents`, so the backend decides how
-/// many ticks there are. Known types get the v0.1 explainer line; unknown
-/// ones show just their title.
+/// The backend decides how many ticks there are.
 class ConsentScreen extends ConsumerWidget {
   const ConsentScreen({super.key});
 
@@ -140,7 +136,6 @@ class _ConsentTile extends ConsumerWidget {
   final bool enabled;
   final VoidCallback onToggle;
 
-  /// v0.1 explainer lines for the types in BE doc §8.3.
   static const _explainers = {
     'sensitive_data':
         'Religion, relationship intent, height and weight are used only to '

@@ -7,18 +7,12 @@ import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import '../errors/failure.dart';
 
-/// Supplies and refreshes the Supabase access token for API calls.
-///
-/// Implemented by the auth feature; kept as a small interface here so `core`
-/// does not depend on a feature.
+/// Lives in core so core never imports a feature.
 abstract interface class AccessTokenSource {
   Future<String?> accessToken();
 
-  /// Refreshes the session once. Returns false when the session is gone.
   Future<bool> refresh();
 
-  /// Called when a refreshed token is still rejected: ends the session so the
-  /// gates send the user back to sign-in.
   Future<void> onUnauthorized();
 }
 
@@ -26,20 +20,11 @@ final accessTokenSourceProvider = Provider<AccessTokenSource>(
   (ref) => throw UnimplementedError('accessTokenSourceProvider not bound'),
 );
 
-/// Called when any endpoint answers `CONSENT_REQUIRED` (for example after the
-/// Terms change). The app binds it to a session refresh, so the gates send
-/// the user back to M05 from wherever they are.
+/// Bound to a session refresh so the gates send the user back to M05.
 final consentRequiredHandlerProvider = Provider<Future<void> Function()>(
   (ref) => () async {},
 );
 
-/// Thin wrapper over Dio for the Go API (`/v1`).
-///
-/// It unwraps the `{"data": ...}` envelope and turns every error into a
-/// [Failure]. When the Go service publishes the onboarding endpoints in
-/// `libs/contracts/openapi.yaml`, the generated dart-dio client replaces the
-/// hand-written calls in each feature's data layer; this class keeps the
-/// interceptors.
 class ApiClient {
   ApiClient(this._dio);
 
@@ -84,7 +69,6 @@ class ApiClient {
   }
 }
 
-/// Maps a Dio error to the app's [Failure] types.
 Failure mapDioException(DioException e) {
   switch (e.type) {
     case DioExceptionType.connectionError:
@@ -122,11 +106,7 @@ Failure mapDioException(DioException e) {
   }
 }
 
-/// Adds the Supabase access token, refreshes it once on 401 and retries.
-/// A second 401 ends the session so the gates return the user to sign-in.
-///
-/// Concurrent 401s share one refresh. (Not a QueuedInterceptor: the retried
-/// request re-enters this interceptor, which would deadlock a queue.)
+/// Not a QueuedInterceptor: the retried request re-enters it (deadlock).
 class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._tokens, this._dio);
 
@@ -172,8 +152,6 @@ class AuthInterceptor extends Interceptor {
   }
 }
 
-/// Fires [onConsentRequired] on a `CONSENT_REQUIRED` error, then passes the
-/// error on unchanged so the caller still fails.
 class ConsentRequiredInterceptor extends Interceptor {
   ConsentRequiredInterceptor(this.onConsentRequired);
 
@@ -190,9 +168,6 @@ class ConsentRequiredInterceptor extends Interceptor {
   }
 }
 
-/// Adds an `Idempotency-Key` to every POST so a retried like, message,
-/// purchase or onboarding submit is never applied twice. Callers that retry a
-/// specific operation pass their own stable key (see [ApiClient.post]).
 class IdempotencyInterceptor extends Interceptor {
   IdempotencyInterceptor([Uuid? uuid]) : _uuid = uuid ?? const Uuid();
 

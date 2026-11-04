@@ -1,8 +1,4 @@
-/// One agreement from `GET /v1/consents/documents` (BE doc §8.3).
-///
-/// The list is rendered as the API returns it, so adding or splitting an
-/// agreement (the PRD's third "storage in Singapore" tick is still open)
-/// needs no app release.
+/// Rendered as returned, so adding an agreement needs no app release.
 class ConsentDocument {
   const ConsentDocument({
     required this.type,

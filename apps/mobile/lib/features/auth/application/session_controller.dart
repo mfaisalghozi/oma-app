@@ -7,7 +7,6 @@ import '../domain/entities/account_state.dart';
 import '../domain/entities/auth_session.dart';
 import 'auth_providers.dart';
 
-/// The app's view of who is signed in and what their account needs next.
 sealed class AppSession {
   const AppSession();
 }
@@ -23,9 +22,6 @@ final class SignedIn extends AppSession {
   final AccountState account;
 }
 
-/// Restores the session on cold start (in parallel with the M00 intro, never
-/// after it), calls `POST /v1/me/initialize` after every sign-in, on cold
-/// start and on resume, and re-runs the gates when anything changes.
 class SessionController extends AsyncNotifier<AppSession> {
   StreamSubscription<AuthSession?>? _authSub;
   AppLifecycleListener? _lifecycle;
@@ -42,8 +38,6 @@ class SessionController extends AsyncNotifier<AppSession> {
     return _resolve(auth.currentSession);
   }
 
-  /// Re-reads the account (after consent, onboarding submit or resume)
-  /// without dropping back to the splash.
   Future<void> refresh() async {
     final user = ref.read(authRepositoryProvider).currentSession;
     final next = await AsyncValue.guard(() => _resolve(user));
@@ -52,7 +46,6 @@ class SessionController extends AsyncNotifier<AppSession> {
     state = next;
   }
 
-  /// Retry after a failed bootstrap (splash error state).
   Future<void> retry() async {
     state = const AsyncLoading();
     await refresh();
@@ -86,6 +79,5 @@ class SessionController extends AsyncNotifier<AppSession> {
 final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, AppSession>(
       SessionController.new,
-      // No silent retries: a failed bootstrap shows Try again on the splash.
       retry: (_, _) => null,
     );
