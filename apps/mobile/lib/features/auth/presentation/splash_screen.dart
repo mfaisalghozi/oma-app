@@ -6,8 +6,6 @@ import '../../../core/widgets/brand.dart';
 import '../../../core/widgets/oma_error_view.dart';
 import '../application/session_controller.dart';
 
-/// M00. Shown while the session restores; the gates move on as soon as the
-/// session resolves. ONB-FE-02 adds the intro animation.
 class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
 

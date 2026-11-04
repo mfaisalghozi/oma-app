@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// OMA design tokens for the two v0.1 palettes.
-///
-/// Values come from the v0.1 design canvas (Swatches and screen boards).
-/// "Deep Sea swaps token values only; layout, sizes and copy stay the same."
-///
-/// TODO(tokens): generate this file from the shared tokens JSON once it exists
-/// (architecture doc, "Theme"), so Flutter and Vue read one source.
+/// TODO(tokens): generate from the tokens JSON shared with the Vue app.
 @immutable
 class OmaColors extends ThemeExtension<OmaColors> {
   const OmaColors({
@@ -27,7 +21,6 @@ class OmaColors extends ThemeExtension<OmaColors> {
     required this.splash,
   });
 
-  /// Lagoon, the light palette.
   static const lagoon = OmaColors(
     background: Color(0xFFFFFFFF),
     card: Color(0xFFEDF1F2),
@@ -46,7 +39,6 @@ class OmaColors extends ThemeExtension<OmaColors> {
     splash: Color(0xFFD6F1EE),
   );
 
-  /// Deep Sea, the dark palette.
   static const deepSea = OmaColors(
     background: Color(0xFF0B1F33),
     card: Color(0xFF12304C),
@@ -71,21 +63,18 @@ class OmaColors extends ThemeExtension<OmaColors> {
   final Color primary;
   final Color onPrimary;
 
-  /// Darker primary used for text on mint surfaces (Lagoon #0B5554).
   final Color primaryStrong;
   final Color accent;
   final Color text;
   final Color textMuted;
   final Color border;
 
-  /// Soft primary-tinted surface (hero cards, icon circles).
   final Color mint;
   final Color tag;
   final Color onTag;
   final Color error;
   final Color errorSurface;
 
-  /// Background behind the M00 splash.
   final Color splash;
 
   @override

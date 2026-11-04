@@ -5,7 +5,6 @@ import 'package:oma_app/core/errors/failure.dart';
 
 import '../../helpers/fakes.dart';
 
-/// Answers requests from a queue of canned responses and records them.
 class _Adapter implements HttpClientAdapter {
   _Adapter(this.responses);
 

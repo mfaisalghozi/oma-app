@@ -9,8 +9,7 @@ final onboardingDraftStoreProvider = Provider<OnboardingDraftStore>(
   (ref) => SecureOnboardingDraftStore(),
 );
 
-/// The signed-in user's id, or null. Narrow so token refreshes don't reload
-/// the draft.
+/// Narrow so token refreshes don't reload the draft.
 final _currentUserIdProvider = Provider<String?>(
   (ref) => switch (ref.watch(sessionControllerProvider).value) {
     SignedIn(:final user) => user.userId,
@@ -18,10 +17,6 @@ final _currentUserIdProvider = Provider<String?>(
   },
 );
 
-/// The current user's onboarding answers. Null when nobody is signed in.
-///
-/// Each change is written to secure storage before the state updates, so
-/// killing the app at any point resumes with the answers intact.
 class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
   @override
   Future<OnboardingDraft?> build() async {
@@ -35,7 +30,6 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
     return OnboardingDraft(userId: userId);
   }
 
-  /// Applies [change] and persists it. No-op while signed out or loading.
   Future<void> edit(
     OnboardingDraft Function(OnboardingDraft draft) change,
   ) async {
@@ -46,7 +40,6 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
     state = AsyncData(next);
   }
 
-  /// After a successful submit, sign-out or account deletion.
   Future<void> clear() async {
     await ref.read(onboardingDraftStoreProvider).clear();
     final userId = state.value?.userId;
