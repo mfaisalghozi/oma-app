@@ -4,7 +4,6 @@ import '../errors/failure.dart';
 import '../theme/oma_colors.dart';
 import 'oma_button.dart';
 
-/// Full-area error pattern: says what failed, nothing lost, Try again.
 class OmaErrorView extends StatelessWidget {
   const OmaErrorView({
     required this.onRetry,

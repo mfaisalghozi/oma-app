@@ -100,7 +100,6 @@ class FakePhotoRepo implements PhotoRepository {
 class FakeStorage implements PhotoStorage {
   final uploads = <String>[];
 
-  /// Failures to throw before succeeding.
   final failures = <Object>[];
   Completer<void>? hold;
 

@@ -12,7 +12,6 @@ import '../widgets/master_chips.dart';
 import '../widgets/step_frame.dart';
 import '../widgets/tap_field.dart';
 
-/// M06 The basics: first name, birthdate (18+), I am, Show me.
 class BasicsScreen extends StatelessWidget {
   const BasicsScreen({super.key});
 
@@ -143,5 +142,5 @@ const _months = [
   'December',
 ];
 
-/// "2 April 1998". Replace with intl `DateFormat` when ARB localisation lands.
+/// TODO(l10n): replace with intl `DateFormat` when ARB lands.
 String formatDate(DateTime d) => '${d.day} ${_months[d.month - 1]} ${d.year}';

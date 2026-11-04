@@ -5,7 +5,6 @@ import '../../../../core/widgets/oma_error_view.dart';
 import '../../application/onboarding_draft_controller.dart';
 import '../../domain/entities/onboarding_draft.dart';
 
-/// Shows [builder] once the draft is loaded.
 class DraftBuilder extends ConsumerWidget {
   const DraftBuilder({required this.builder, super.key});
 

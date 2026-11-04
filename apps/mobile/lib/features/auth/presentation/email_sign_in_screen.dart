@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/widgets/placeholder_screen.dart';
 
-/// M04 Sign in and M04b Create account are tabs on one screen; the route
-/// picks the starting tab.
 class EmailSignInScreen extends StatelessWidget {
   const EmailSignInScreen({this.createAccount = false, super.key});
 

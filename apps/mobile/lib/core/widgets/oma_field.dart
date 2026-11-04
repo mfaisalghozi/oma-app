@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../theme/oma_colors.dart';
 
-/// Labelled 52 px text field with an optional hint line under it.
 class OmaField extends StatelessWidget {
   const OmaField({
     required this.label,
@@ -44,7 +43,6 @@ class OmaField extends StatelessWidget {
   final bool readOnly;
   final VoidCallback? onTap;
 
-  /// Shows "82/255" under the field (bio, ambition).
   final bool showCounter;
   final List<TextInputFormatter>? inputFormatters;
 

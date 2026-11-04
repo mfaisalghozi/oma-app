@@ -1,9 +1,6 @@
 import 'package:meta/meta.dart';
 
-/// A reserved slot from `POST /v1/photos/upload-urls` or its refresh.
-///
-/// [uploadToken] is a short-lived capability: kept in memory only, never
-/// logged or written to the draft (BE doc §8.5).
+/// [uploadToken] lives in memory only; never logged or saved.
 @immutable
 class UploadSlot {
   const UploadSlot({
@@ -56,30 +53,23 @@ class PhotoFileMeta {
   };
 }
 
-/// Go API side of photos (BE doc §8.5).
 abstract interface class PhotoRepository {
   Future<List<UploadSlot>> reserve(List<PhotoFileMeta> files);
   Future<UploadSlot> refreshSlot(String photoId);
   Future<void> delete(String photoId);
 
-  /// Short-lived signed read URLs by photo id, for tiles whose local file
-  /// is already gone.
   Future<Map<String, String>> signedUrls();
 }
 
-/// Direct upload to Supabase Storage with a signed token.
 abstract interface class PhotoStorage {
   Future<void> upload(UploadSlot slot, String filePath);
 }
 
-/// Device photo library.
 abstract interface class PhotoPicker {
-  /// Up to [max] photos; empty when the user cancels.
   Future<List<String>> pick({required int max});
 }
 
-/// Resizes to about 1080 px and re-encodes as JPEG, stripping EXIF (which
-/// can hold GPS). Returns the new temp file path.
+/// Re-encodes as JPEG to strip EXIF, which can hold GPS.
 abstract interface class PhotoCompressor {
   Future<String> compress(String sourcePath);
 }
