@@ -1,0 +1,4 @@
+tags:
+  golden:
+    # Goldens are rendered on Linux (CI). Regenerate with
+    # `flutter test --update-goldens --tags golden`.
