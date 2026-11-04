@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oma_app/app/app.dart';
 import 'package:oma_app/features/auth/domain/entities/account_state.dart';
+import 'package:oma_app/features/onboarding/application/consent_controller.dart';
+import 'package:oma_app/features/onboarding/domain/entities/consent_document.dart';
+import 'package:oma_app/features/onboarding/domain/repositories/consent_repository.dart';
+import 'package:oma_app/features/onboarding/presentation/consent_screen.dart';
 
 import 'helpers/fakes.dart';
 
@@ -14,7 +18,10 @@ void main() {
   }) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: baseOverrides(auth: auth, accounts: accounts),
+        overrides: [
+          ...baseOverrides(auth: auth, accounts: accounts),
+          consentRepositoryProvider.overrideWithValue(_NoConsents()),
+        ],
         child: const OmaApp(),
       ),
     );
@@ -36,7 +43,7 @@ void main() {
       auth: FakeAuthRepository(testUser),
       accounts: FakeAccountRepository(account(next: NextAction.acceptConsents)),
     );
-    expect(find.textContaining('M05'), findsOneWidget);
+    expect(find.byType(ConsentScreen), findsOneWidget);
   });
 
   testWidgets('returning user lands on Discover', (tester) async {
@@ -70,4 +77,12 @@ void main() {
     final ctx = tester.element(find.textContaining('M01'));
     expect(Theme.of(ctx).brightness, Brightness.dark);
   });
+}
+
+class _NoConsents implements ConsentRepository {
+  @override
+  Future<List<ConsentDocument>> activeDocuments() async => const [];
+
+  @override
+  Future<void> accept(Iterable<String> types) async {}
 }
