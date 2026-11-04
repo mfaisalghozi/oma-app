@@ -1,5 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- M10: one rough fix, rounded on the device. No fine or background location. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- M11: Android 13+ notification permission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="oma-app"
         android:name="${applicationName}"
