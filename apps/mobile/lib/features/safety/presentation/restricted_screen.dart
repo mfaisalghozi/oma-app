@@ -6,8 +6,6 @@ import '../../../core/widgets/oma_scaffold.dart';
 import '../../auth/application/session_controller.dart';
 import '../../auth/domain/entities/account_state.dart';
 
-/// Gate target for suspended (M26) and frozen accounts. Minimal for now: the
-/// full M26 and the unfreeze prompt belong to the safety and account features.
 class RestrictedScreen extends ConsumerWidget {
   const RestrictedScreen({super.key});
 

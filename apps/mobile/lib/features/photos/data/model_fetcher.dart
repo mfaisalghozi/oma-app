@@ -5,10 +5,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/errors/failure.dart';
 
-/// Downloads the NSFW model file from our mirror once and keeps it in the
-/// app's support folder. The SHA-256 is checked after every download and
-/// before every first use per process, so a corrupted or swapped file is
-/// never handed to the inference engine.
+/// SHA-256 is checked after download and before first use.
 class ModelFetcher {
   ModelFetcher({
     required this.url,
@@ -20,13 +17,11 @@ class ModelFetcher {
   final String url;
   final String sha256Hex;
 
-  /// Resolves the app support folder (path_provider in the app).
   final Future<Directory> Function() directory;
   final Dio _dio;
 
   Future<File>? _inFlight;
 
-  /// Path of a verified model file; downloads it on first call.
   Future<File> ensure() =>
       _inFlight ??= _ensure().whenComplete(() => _inFlight = null);
 

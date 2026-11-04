@@ -5,7 +5,6 @@ abstract final class BrandAssets {
   static const wordmark = 'assets/brand/oma-wordmark.png';
 }
 
-/// The whale app icon with the rounded corners used on M00 and M01.
 class OmaAppIcon extends StatelessWidget {
   const OmaAppIcon({this.size = 148, super.key});
 

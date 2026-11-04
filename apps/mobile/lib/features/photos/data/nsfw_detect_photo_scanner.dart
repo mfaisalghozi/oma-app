@@ -6,15 +6,12 @@ import '../../../core/errors/failure.dart';
 import '../domain/photo_scanner.dart';
 import 'model_fetcher.dart';
 
-/// What the scanner needs from `nsfw_detect`, so tests don't need the
-/// platform channel.
 abstract interface class NsfwEngine {
   Future<void> register({required String id, required String path});
 
   Future<NsfwScan> scanFile(String path, {required String modelId});
 }
 
-/// The parts of a `ScanResult` the verdict depends on.
 class NsfwScan {
   const NsfwScan({
     required this.completed,
@@ -52,12 +49,7 @@ class NsfwDetectEngine implements NsfwEngine {
   }
 }
 
-/// [PhotoScanner] on `nsfw_detect` 2.8.0 with our own mirrored model.
-///
-/// The package's built-in models download from the package author's GitHub
-/// release with no checksum, so we don't use them: [ModelFetcher] fetches
-/// our copy, checks its SHA-256, and the file is registered as a custom
-/// model once per process.
+/// Not the package's built-in models: they download with no checksum.
 class NsfwDetectPhotoScanner implements PhotoScanner {
   NsfwDetectPhotoScanner({
     required this.fetcher,
