@@ -58,3 +58,7 @@ dist/
 
 # Go test artifacts
 *.test
+
+# Flutter flavor config (copy config/dev.example.json to config/dev.json)
+apps/mobile/config/*.json
+!apps/mobile/config/*.example.json

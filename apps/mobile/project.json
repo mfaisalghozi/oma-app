@@ -22,7 +22,7 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "flutter run",
+        "command": "flutter run --dart-define-from-file=config/dev.json",
         "cwd": "apps/mobile"
       },
       "cache": false

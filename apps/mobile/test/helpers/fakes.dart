@@ -1,0 +1,93 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:oma_app/core/api/api_client.dart';
+import 'package:oma_app/core/config/app_config.dart';
+import 'package:oma_app/features/auth/application/auth_providers.dart';
+import 'package:oma_app/features/auth/domain/entities/account_state.dart';
+import 'package:oma_app/features/auth/domain/entities/auth_session.dart';
+import 'package:oma_app/features/auth/domain/repositories/account_repository.dart';
+import 'package:oma_app/features/auth/domain/repositories/auth_repository.dart';
+
+const testConfig = AppConfig(
+  flavor: 'test',
+  supabaseUrl: 'https://test.supabase.co',
+  supabasePublishableKey: 'test',
+  apiBaseUrl: 'http://localhost:8080',
+  authRedirectUrl: 'com.mfaisalghozi.omaapp://auth/callback',
+);
+
+const testUser = AuthSession(userId: 'u1', email: 'rania@example.com');
+
+AccountState account({
+  NextAction next = NextAction.completeOnboarding,
+  AccountStatus status = AccountStatus.active,
+}) => AccountState(
+  userId: 'u1',
+  status: status,
+  onboardingCompleted: next == NextAction.discovery,
+  nextAction: next,
+);
+
+class FakeAuthRepository implements AuthRepository, AccessTokenSource {
+  FakeAuthRepository([this._session]);
+
+  AuthSession? _session;
+  final _changes = StreamController<AuthSession?>.broadcast();
+  int signOutCalls = 0;
+
+  void emit(AuthSession? session) {
+    _session = session;
+    _changes.add(session);
+  }
+
+  @override
+  AuthSession? get currentSession => _session;
+
+  @override
+  Stream<AuthSession?> sessionChanges() => _changes.stream;
+
+  @override
+  Future<String?> accessToken() async => _session == null ? null : 'token';
+
+  @override
+  Future<bool> refreshSession() async => _session != null;
+
+  @override
+  Future<bool> refresh() => refreshSession();
+
+  @override
+  Future<void> onUnauthorized() => signOut();
+
+  @override
+  Future<void> signOut() async {
+    signOutCalls++;
+    emit(null);
+  }
+}
+
+class FakeAccountRepository implements AccountRepository {
+  FakeAccountRepository(this.result);
+
+  /// Either an [AccountState] or an exception to throw.
+  Object result;
+  int calls = 0;
+
+  @override
+  Future<AccountState> initialize() async {
+    calls++;
+    final r = result;
+    if (r is AccountState) return r;
+    throw r;
+  }
+}
+
+List<Override> baseOverrides({
+  required FakeAuthRepository auth,
+  required FakeAccountRepository accounts,
+}) => [
+  appConfigProvider.overrideWithValue(testConfig),
+  authRepositoryProvider.overrideWithValue(auth),
+  accessTokenSourceProvider.overrideWithValue(auth),
+  accountRepositoryProvider.overrideWithValue(accounts),
+];

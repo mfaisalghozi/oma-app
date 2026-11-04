@@ -1,0 +1,10 @@
+{
+  "FLAVOR": "dev",
+  "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "YOUR-PUBLISHABLE-KEY",
+  "API_BASE_URL": "http://10.0.2.2:8080",
+  "AUTH_REDIRECT_URL": "com.mfaisalghozi.omaapp://auth/callback",
+  "AUTH_PHONE_ENABLED": "false",
+  "GOOGLE_WEB_CLIENT_ID": "",
+  "GOOGLE_IOS_CLIENT_ID": ""
+}

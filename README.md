@@ -86,6 +86,14 @@ flutter devices
 
 ### Install dependencies and run
 
+The app reads Supabase and API settings at build time. Copy the example config
+once and fill in your Supabase project URL and publishable key (the real file is
+git-ignored):
+
+```sh
+cp apps/mobile/config/dev.example.json apps/mobile/config/dev.json
+```
+
 After completing the workspace installation, run from the repository root:
 
 ```sh
@@ -104,8 +112,12 @@ You can also use Flutter directly from the app directory:
 ```sh
 cd apps/mobile
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=config/dev.json
 ```
+
+Mobile code layout (see the OMA Flutter architecture doc): `lib/app` (router,
+gates, bootstrap), `lib/core` (API client, errors, theme tokens, shared
+widgets), and `lib/features/<feature>/{domain,data,application,presentation}`.
 
 ### Check and build
 
