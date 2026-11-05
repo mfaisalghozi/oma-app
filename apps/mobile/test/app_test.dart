@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oma_app/app/app.dart';
+import 'package:oma_app/features/auth/presentation/welcome_screen.dart';
 import 'package:oma_app/features/auth/domain/entities/account_state.dart';
 import 'package:oma_app/features/onboarding/application/consent_controller.dart';
 import 'package:oma_app/features/onboarding/domain/entities/consent_document.dart';
@@ -34,7 +35,7 @@ void main() {
       auth: FakeAuthRepository(),
       accounts: FakeAccountRepository(account()),
     );
-    expect(find.textContaining('M01'), findsOneWidget);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
   });
 
   testWidgets('new account lands on Consent', (tester) async {
@@ -63,7 +64,7 @@ void main() {
     );
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('M01'), findsOneWidget);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
   });
 
   testWidgets('Deep Sea theme builds', (tester) async {
@@ -74,7 +75,7 @@ void main() {
       auth: FakeAuthRepository(),
       accounts: FakeAccountRepository(account()),
     );
-    final ctx = tester.element(find.textContaining('M01'));
+    final ctx = tester.element(find.byType(WelcomeScreen));
     expect(Theme.of(ctx).brightness, Brightness.dark);
   });
 }

@@ -1,0 +1,17 @@
+# Native static splash (M00, first frame). Regenerate after changes with
+#   dart run flutter_native_splash:create
+# The Flutter intro animation then plays from the same frame.
+flutter_native_splash:
+  color: "#D6F1EE"
+  image: assets/brand/oma-app-icon.png
+  color_dark: "#0B1F33"
+  image_dark: assets/brand/oma-app-icon.png
+  android_12:
+    color: "#D6F1EE"
+    image: assets/brand/oma-app-icon.png
+    icon_background_color: "#D6F1EE"
+    color_dark: "#0B1F33"
+    image_dark: assets/brand/oma-app-icon.png
+    icon_background_color_dark: "#0B1F33"
+  fullscreen: false
+  web: false
