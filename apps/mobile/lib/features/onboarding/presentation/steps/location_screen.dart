@@ -130,7 +130,7 @@ class _LocationBodyState extends ConsumerState<_LocationBody>
       title: 'Find people near you',
       subtitle:
           "We use your rough location to show who's nearby. Your exact spot "
-          'never leaves our servers; others see distance only, like “4 km '
+          'never leaves your phone; others see distance only, like “4 km '
           'away”.',
       canContinue: !_busy,
       nextLabel: 'Allow location',

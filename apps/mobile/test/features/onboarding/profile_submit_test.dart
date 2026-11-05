@@ -228,7 +228,7 @@ void main() {
 
         final failed = c.read(onboardingSubmitProvider);
         expect(failed, isA<SubmitFailed>());
-        expect((failed as SubmitFailed).phase, SetupPhase.photos);
+        expect((failed as SubmitFailed).phase, SetupPhase.saving);
         expect(store.saved?.fullName, ' Rania ', reason: 'draft kept');
         final key = store.saved!.submitKey;
         expect(key, isNotNull);

@@ -106,6 +106,9 @@ class OnboardingSubmitController extends Notifier<SubmitState> {
       }
 
       final draft = ref.read(onboardingDraftProvider).value!;
+      // The final API call is part of saving, not part of the photo phase.
+      phase = SetupPhase.saving;
+      state = SubmitRunning(phase);
       try {
         await ref
             .read(onboardingRepositoryProvider)
