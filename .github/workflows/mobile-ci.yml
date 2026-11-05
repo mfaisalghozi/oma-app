@@ -1,0 +1,80 @@
+name: Mobile CI
+
+# Format, analyze and test the Flutter app on every PR and on pushes to the
+# integration branches. Goldens are compared pixel-for-pixel, so the runner
+# image and the Flutter version are pinned: bump them on purpose, regenerate
+# goldens with the same pair, and commit both in one PR.
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "libs/contracts/**"
+      - ".github/workflows/mobile-ci.yml"
+  push:
+    branches: [main, "release/**"]
+    paths:
+      - "apps/mobile/**"
+      - "libs/contracts/**"
+      - ".github/workflows/mobile-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Keep in sync with README "Mobile app installation" and the CD workflow.
+  FLUTTER_VERSION: "3.47.9"
+
+defaults:
+  run:
+    working-directory: apps/mobile
+
+jobs:
+  check:
+    name: Format, analyze, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Install packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test (unit, widget, golden)
+        run: flutter test --coverage --reporter github
+
+      - name: Upload golden diffs
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: golden-failures
+          path: apps/mobile/test/**/failures/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload coverage
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage
+          path: apps/mobile/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 14
