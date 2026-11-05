@@ -20,6 +20,11 @@ final accessTokenSourceProvider = Provider<AccessTokenSource>(
   (ref) => throw UnimplementedError('accessTokenSourceProvider not bound'),
 );
 
+/// Bound to a session refresh so the gates send the user back to M05.
+final consentRequiredHandlerProvider = Provider<Future<void> Function()>(
+  (ref) => () async {},
+);
+
 class ApiClient {
   ApiClient(this._dio);
 
@@ -147,6 +152,22 @@ class AuthInterceptor extends Interceptor {
   }
 }
 
+class ConsentRequiredInterceptor extends Interceptor {
+  ConsentRequiredInterceptor(this.onConsentRequired);
+
+  final Future<void> Function() onConsentRequired;
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final body = err.response?.data;
+    final error = body is Map ? body['error'] : null;
+    if (error is Map && error['code'] == ApiErrorCode.consentRequired) {
+      unawaited(onConsentRequired());
+    }
+    handler.next(err);
+  }
+}
+
 class IdempotencyInterceptor extends Interceptor {
   IdempotencyInterceptor([Uuid? uuid]) : _uuid = uuid ?? const Uuid();
 
@@ -165,6 +186,7 @@ class IdempotencyInterceptor extends Interceptor {
 Dio buildApiDio({
   required AppConfig config,
   required AccessTokenSource tokens,
+  Future<void> Function()? onConsentRequired,
 }) {
   final dio = Dio(
     BaseOptions(
@@ -179,6 +201,8 @@ Dio buildApiDio({
   dio.interceptors.addAll([
     AuthInterceptor(tokens, dio),
     IdempotencyInterceptor(),
+    if (onConsentRequired != null)
+      ConsentRequiredInterceptor(onConsentRequired),
   ]);
   return dio;
 }
@@ -187,6 +211,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = buildApiDio(
     config: ref.watch(appConfigProvider),
     tokens: ref.watch(accessTokenSourceProvider),
+    onConsentRequired: ref.watch(consentRequiredHandlerProvider),
   );
   ref.onDispose(dio.close);
   return ApiClient(dio);
