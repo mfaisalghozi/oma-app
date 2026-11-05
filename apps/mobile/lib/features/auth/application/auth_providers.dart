@@ -4,10 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/config/app_config.dart';
 import '../data/api_account_repository.dart';
+import '../data/lockout_store.dart';
 import '../data/native_social_auth_repository.dart';
 import '../data/supabase_auth_repository.dart';
+import '../data/supabase_email_auth_repository.dart';
 import '../domain/repositories/account_repository.dart';
 import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/email_auth_repository.dart';
 import '../domain/repositories/social_auth_repository.dart';
 
 final supabaseAuthRepositoryProvider = Provider<SupabaseAuthRepository>(
@@ -28,6 +31,17 @@ final socialAuthRepositoryProvider = Provider<SocialAuthRepository>(
     ref.watch(appConfigProvider),
   ),
 );
+
+final emailAuthRepositoryProvider = Provider<EmailAuthRepository>(
+  (ref) => SupabaseEmailAuthRepository(
+    Supabase.instance.client.auth,
+    redirectUrl: ref.watch(appConfigProvider).authRedirectUrl,
+  ),
+);
+
+final lockoutStoreProvider = Provider<LockoutStore>((ref) => LockoutStore());
+
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 final pendingEmailConfirmationProvider =
     NotifierProvider<PendingEmailConfirmation, String?>(
