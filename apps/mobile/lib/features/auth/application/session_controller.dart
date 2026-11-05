@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/entities/account_state.dart';
 import '../domain/entities/auth_session.dart';
+import '../../onboarding/application/onboarding_draft_controller.dart';
 import 'auth_providers.dart';
 
 sealed class AppSession {
@@ -51,7 +52,10 @@ class SessionController extends AsyncNotifier<AppSession> {
     await refresh();
   }
 
-  Future<void> signOut() => ref.read(authRepositoryProvider).signOut();
+  Future<void> signOut() async {
+    await ref.read(onboardingDraftStoreProvider).clear();
+    await ref.read(authRepositoryProvider).signOut();
+  }
 
   Future<AppSession> _resolve(AuthSession? user) async {
     if (user == null || !user.emailConfirmed) return const SignedOut();

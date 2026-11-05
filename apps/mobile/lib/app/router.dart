@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/application/auth_providers.dart';
 import '../features/auth/application/session_controller.dart';
+import '../features/auth/domain/entities/account_state.dart';
 import '../features/auth/domain/usecases/resolve_start_route.dart';
 import '../features/auth/presentation/check_inbox_screen.dart';
 import '../features/auth/presentation/email_sign_in_screen.dart';
@@ -37,10 +38,18 @@ GateState readGateState(Ref ref) {
       pendingEmailConfirmation:
           ref.read(pendingEmailConfirmationProvider) != null,
     ),
-    SignedIn(:final account) => GateSignedIn(
-      account,
-      onboardingResumePath: ref.read(onboardingResumePathProvider),
-    ),
+    SignedIn(:final account) => switch (ref.read(
+      onboardingResumePathProvider,
+    )) {
+      // Wait for the draft so the resume step is right.
+      null when account.nextAction == NextAction.completeOnboarding =>
+        const GateLoading(),
+      final path => GateSignedIn(
+        account,
+        onboardingResumePath:
+            path ?? Routes.onboardingStep(OnboardingStep.basics.path),
+      ),
+    },
   };
 }
 
@@ -98,7 +107,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '${Routes.onboarding}/:step',
         redirect: (_, state) =>
             OnboardingStep.fromPath(state.pathParameters['step']) == null
-            ? ref.read(onboardingResumePathProvider)
+            ? ref.read(onboardingResumePathProvider) ??
+                  Routes.onboardingStep(OnboardingStep.basics.path)
             : null,
         builder: (_, state) => _onboardingStep(
           OnboardingStep.fromPath(state.pathParameters['step'])!,

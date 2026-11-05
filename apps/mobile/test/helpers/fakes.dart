@@ -8,6 +8,9 @@ import 'package:oma_app/features/auth/domain/entities/account_state.dart';
 import 'package:oma_app/features/auth/domain/entities/auth_session.dart';
 import 'package:oma_app/features/auth/domain/repositories/account_repository.dart';
 import 'package:oma_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:oma_app/features/onboarding/application/onboarding_draft_controller.dart';
+import 'package:oma_app/features/onboarding/domain/entities/onboarding_draft.dart';
+import 'package:oma_app/features/onboarding/domain/repositories/onboarding_draft_store.dart';
 
 const testConfig = AppConfig(
   flavor: 'test',
@@ -81,10 +84,35 @@ class FakeAccountRepository implements AccountRepository {
   }
 }
 
+class MemoryDraftStore implements OnboardingDraftStore {
+  MemoryDraftStore([this.saved]);
+
+  OnboardingDraft? saved;
+  int saves = 0;
+  int clears = 0;
+
+  @override
+  Future<OnboardingDraft?> load() async => saved;
+
+  @override
+  Future<void> save(OnboardingDraft draft) async {
+    saves++;
+    saved = draft;
+  }
+
+  @override
+  Future<void> clear() async {
+    clears++;
+    saved = null;
+  }
+}
+
 List<Override> baseOverrides({
   required FakeAuthRepository auth,
   required FakeAccountRepository accounts,
+  OnboardingDraftStore? drafts,
 }) => [
+  onboardingDraftStoreProvider.overrideWithValue(drafts ?? MemoryDraftStore()),
   appConfigProvider.overrideWithValue(testConfig),
   authRepositoryProvider.overrideWithValue(auth),
   accessTokenSourceProvider.overrideWithValue(auth),
