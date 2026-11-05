@@ -162,6 +162,40 @@ void main() {
     });
   });
 
+  testWidgets('the 15-minute pause re-enables the button when it ends', (
+    tester,
+  ) async {
+    emailAuth.next = const AuthFailure(AuthFailureKind.invalidCredentials);
+    await pumpScreen(tester, const EmailSignInScreen(), overrides: overrides());
+    await tester.enterText(find.byType(TextField).at(0), 'a@b.co');
+    await tester.enterText(find.byType(TextField).at(1), 'wrongpass1');
+    await tester.pump();
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.widgetWithText(OmaButton, 'Sign in'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.textContaining('Sign-in is paused until'), findsOneWidget);
+    expect(
+      tester
+          .widget<OmaButton>(find.widgetWithText(OmaButton, 'Sign in'))
+          .onPressed,
+      isNull,
+    );
+
+    now = now.add(const Duration(minutes: 16));
+    await tester.pump(const Duration(minutes: 16));
+    await tester.pump();
+
+    expect(find.textContaining('Sign-in is paused until'), findsNothing);
+    expect(
+      tester
+          .widget<OmaButton>(find.widgetWithText(OmaButton, 'Sign in'))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets('M04c resend is disabled for 45 s', (tester) async {
     final o = overrides();
     await pumpScreen(tester, const CheckInboxScreen(), overrides: o);

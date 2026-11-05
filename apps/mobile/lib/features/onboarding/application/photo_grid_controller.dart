@@ -91,6 +91,12 @@ class PhotoGridController extends Notifier<PhotoGridState> {
   /// Upload tokens, in memory only (BE doc: never persisted).
   final _slots = <String, UploadSlot>{};
 
+  /// Uploads currently running, so a submit retry joins the existing work
+  /// instead of uploading the same photo twice.
+  final _uploads = <String, Future<void>>{};
+
+  bool _adding = false;
+
   @override
   PhotoGridState build() => const PhotoGridState();
 
@@ -109,19 +115,25 @@ class PhotoGridController extends Notifier<PhotoGridState> {
   void dismissError() => state = state.copyWith(clearError: true);
 
   Future<void> add() async {
-    final draft = _current;
-    if (draft == null) return;
-    final free = state.freeSlots(draft);
-    if (free <= 0) return;
-    final List<String> picked;
+    if (_adding) return;
+    _adding = true;
     try {
-      picked = await ref.read(photoPickerProvider).pick(max: free);
-    } on Object {
-      state = state.copyWith(error: const DeviceFailure('picker'));
-      return;
-    }
-    for (final src in picked.take(free)) {
-      await _process(src);
+      final draft = _current;
+      if (draft == null) return;
+      final free = state.freeSlots(draft);
+      if (free <= 0) return;
+      final List<String> picked;
+      try {
+        picked = await ref.read(photoPickerProvider).pick(max: free);
+      } on Object {
+        state = state.copyWith(error: const DeviceFailure('picker'));
+        return;
+      }
+      for (final src in picked.take(free)) {
+        await _process(src);
+      }
+    } finally {
+      _adding = false;
     }
   }
 
@@ -140,6 +152,23 @@ class PhotoGridController extends Notifier<PhotoGridState> {
     if (photo == null) return;
     if (!File(photo.localPath).existsSync()) return replace(key);
     await _upload(photo.localPath);
+  }
+
+  /// Finishes the draft's pending uploads for submit. Never opens the picker:
+  /// a missing temp file or a failed upload returns false so M11b can send the
+  /// user back to M09 instead of submitting a profile without photos.
+  Future<bool> uploadPending() async {
+    final draft = _current;
+    if (draft == null || draft.photos.isEmpty) return false;
+    for (final photo in [...draft.photos]) {
+      if (photo.isUploaded) continue;
+      if (!File(photo.localPath).existsSync()) return false;
+      await _upload(photo.localPath);
+    }
+    final latest = _current;
+    return latest != null &&
+        latest.photos.isNotEmpty &&
+        latest.photos.every((p) => p.isUploaded);
   }
 
   Future<void> _process(String source) async {
@@ -193,7 +222,20 @@ class PhotoGridController extends Notifier<PhotoGridState> {
     }
   }
 
-  Future<void> _upload(String path) async {
+  Future<void> _upload(String path) {
+    final inFlight = _uploads[path];
+    if (inFlight != null) return inFlight;
+    final future = _runUpload(path);
+    _uploads[path] = future;
+    unawaited(
+      future.whenComplete(() {
+        _uploads.remove(path);
+      }),
+    );
+    return future;
+  }
+
+  Future<void> _runUpload(String path) async {
     state = state.copyWith(uploading: {...state.uploading, path});
     try {
       final slot = await _slotFor(path);

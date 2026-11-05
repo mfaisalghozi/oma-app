@@ -7,6 +7,8 @@ import '../config/app_config.dart';
 import '../theme/oma_colors.dart';
 
 Future<void> openExternalPage(Uri url) async {
+  // Backend-supplied legal/support links must never open a local or app scheme.
+  if (!url.isScheme('http') && !url.isScheme('https')) return;
   await launchUrl(url, mode: LaunchMode.inAppBrowserView);
 }
 

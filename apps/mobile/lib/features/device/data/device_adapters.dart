@@ -45,7 +45,13 @@ class GeolocatorLocationService implements LocationService {
   }
 
   @override
-  Future<void> openSettings() => Geolocator.openAppSettings();
+  Future<void> openSettings() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      await Geolocator.openLocationSettings();
+      return;
+    }
+    await Geolocator.openAppSettings();
+  }
 
   static LocationAccess _map(LocationPermission p) => switch (p) {
     LocationPermission.always ||

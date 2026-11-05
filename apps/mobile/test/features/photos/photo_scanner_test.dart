@@ -182,6 +182,8 @@ void main() {
         ..scanError = null
         ..next = scan(NsfwCategory.safe, 0.99, completed: false);
       await expectLater(scanner.scan('/a.jpg'), throwsA(isA<DeviceFailure>()));
+      engine.next = scan(NsfwCategory.unknown, 0.99);
+      await expectLater(scanner.scan('/a.jpg'), throwsA(isA<DeviceFailure>()));
     });
 
     test('a failed model download can be retried', () async {

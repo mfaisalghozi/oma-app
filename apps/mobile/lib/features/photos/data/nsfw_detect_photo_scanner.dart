@@ -97,9 +97,9 @@ class NsfwDetectPhotoScanner implements PhotoScanner {
         PhotoRejectReason.explicitNudity,
       ),
       // Suggestive (swimwear, gym, freediving) is allowed on purpose.
-      NsfwCategory.safe ||
-      NsfwCategory.suggestive ||
-      NsfwCategory.unknown => const PhotoAllowed(),
+      NsfwCategory.safe || NsfwCategory.suggestive => const PhotoAllowed(),
+      // Unknown is not evidence of safety.
+      NsfwCategory.unknown => throw const DeviceFailure('nsfw scan unknown'),
     };
   }
 }

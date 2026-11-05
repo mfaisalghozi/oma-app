@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/session_controller.dart';
+import '../../../core/errors/failure.dart';
+import '../../photos/application/photo_providers.dart';
 import '../data/secure_onboarding_draft_store.dart';
 import '../domain/entities/onboarding_draft.dart';
 import '../domain/repositories/onboarding_draft_store.dart';
@@ -10,6 +12,28 @@ import '../domain/repositories/onboarding_draft_store.dart';
 final onboardingDraftStoreProvider = Provider<OnboardingDraftStore>(
   (ref) => SecureOnboardingDraftStore(),
 );
+
+/// Cleans persisted answers without reading [onboardingDraftProvider], so the
+/// session controller can call it without a provider dependency cycle.
+final onboardingDraftCleanupProvider = Provider<Future<void> Function()>((ref) {
+  final store = ref.watch(onboardingDraftStoreProvider);
+  final photos = ref.watch(photoRepositoryProvider);
+  return () async {
+    final draft = await store.load();
+    if (draft != null) {
+      for (final photo in draft.photos) {
+        final id = photo.photoId;
+        if (id == null) continue;
+        try {
+          await photos.delete(id);
+        } on Failure {
+          // Best effort: local answers are still cleared below.
+        }
+      }
+    }
+    await store.clear();
+  };
+});
 
 /// Narrow so token refreshes don't reload the draft.
 final _currentUserIdProvider = Provider<String?>(

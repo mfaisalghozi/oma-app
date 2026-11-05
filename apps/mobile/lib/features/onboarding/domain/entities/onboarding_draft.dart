@@ -100,7 +100,7 @@ class OnboardingDraft {
 
   bool get personalityDone => hobbyIds.isNotEmpty;
 
-  bool get photosDone => photos.any((p) => p.photoId != null);
+  bool get photosDone => photos.any((p) => p.isUploaded);
 
   bool get locationDone => location != null;
 

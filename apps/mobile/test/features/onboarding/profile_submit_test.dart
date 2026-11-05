@@ -106,6 +106,16 @@ class OkStorage implements PhotoStorage {
   Future<void> upload(UploadSlot slot, String filePath) async => uploads++;
 }
 
+class FakePicker implements PhotoPicker {
+  int calls = 0;
+
+  @override
+  Future<List<String>> pick({required int max}) async {
+    calls++;
+    return const [];
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -163,6 +173,7 @@ void main() {
     late FakeOnboardingRepo repo;
     late OkStorage storage;
     late OkPhotoRepo photos;
+    late FakePicker picker;
 
     setUp(() {
       store = MemoryDraftStore(_complete());
@@ -170,6 +181,7 @@ void main() {
       repo = FakeOnboardingRepo();
       storage = OkStorage();
       photos = OkPhotoRepo();
+      picker = FakePicker();
     });
 
     List<Override> overrides() => [
@@ -181,6 +193,7 @@ void main() {
       onboardingRepositoryProvider.overrideWithValue(repo),
       photoRepositoryProvider.overrideWithValue(photos),
       photoStorageProvider.overrideWithValue(storage),
+      photoPickerProvider.overrideWithValue(picker),
     ];
 
     Future<ProviderContainer> create() async {
@@ -299,6 +312,39 @@ void main() {
         {'photo_id': 'p-a', 'position': 1},
         {'photo_id': 'p-b', 'position': 2},
       ]);
+    });
+
+    test('a missing photo file sends the user back to M09', () async {
+      store.saved = _complete(
+        photos: const [
+          DraftPhoto(
+            localPath: '/gone.jpg',
+            photoId: 'p-b',
+            status: DraftPhotoStatus.failed,
+          ),
+        ],
+      );
+      final c = await create();
+      await c.read(onboardingSubmitProvider.notifier).submit();
+
+      final s = c.read(onboardingSubmitProvider);
+      expect(s, isA<SubmitNeedsFix>());
+      expect((s as SubmitNeedsFix).step, OnboardingStep.photos);
+      expect(picker.calls, 0, reason: 'submit must not open the gallery');
+      expect(repo.payloads, isEmpty);
+      expect(store.saved, isNotNull);
+    });
+
+    test('a draft without photos is not submitted', () async {
+      store.saved = _complete(photos: const []);
+      final c = await create();
+      await c.read(onboardingSubmitProvider.notifier).submit();
+
+      final s = c.read(onboardingSubmitProvider);
+      expect(s, isA<SubmitNeedsFix>());
+      expect((s as SubmitNeedsFix).step, OnboardingStep.photos);
+      expect(picker.calls, 0);
+      expect(repo.payloads, isEmpty);
     });
   });
 

@@ -6,6 +6,7 @@ import 'package:oma_app/features/onboarding/application/onboarding_draft_control
 import 'package:oma_app/features/onboarding/application/onboarding_resume.dart';
 import 'package:oma_app/features/onboarding/domain/entities/onboarding_draft.dart';
 import 'package:oma_app/features/onboarding/domain/entities/onboarding_step.dart';
+import 'package:oma_app/features/photos/application/photo_providers.dart';
 
 import '../../helpers/fakes.dart';
 
@@ -113,11 +114,14 @@ void main() {
 
     ProviderContainer create() {
       final c = ProviderContainer(
-        overrides: baseOverrides(
-          auth: auth,
-          accounts: FakeAccountRepository(account()),
-          drafts: store,
-        ),
+        overrides: [
+          ...baseOverrides(
+            auth: auth,
+            accounts: FakeAccountRepository(account()),
+            drafts: store,
+          ),
+          photoRepositoryProvider.overrideWithValue(NoopPhotoRepository()),
+        ],
       );
       addTearDown(c.dispose);
       c.listen(onboardingDraftProvider, (_, _) {});

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../../core/widgets/oma_banner.dart';
 import '../../../core/widgets/oma_button.dart';
 import '../../../core/widgets/oma_field.dart';
 import '../../../core/widgets/oma_scaffold.dart';
+import '../application/auth_providers.dart';
 import '../application/email_auth_controller.dart';
 import '../domain/entities/password_rules.dart';
 
@@ -36,12 +39,26 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
   late final _email = TextEditingController(text: ref.read(_typedEmail));
   final _password = TextEditingController();
   bool _obscure = true;
+  Timer? _unlock;
 
   @override
   void dispose() {
+    _unlock?.cancel();
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  /// Rebuilds once when the 15-minute lockout ends, so the button re-enables
+  /// without the user leaving the screen.
+  void _scheduleUnlock(DateTime? until, DateTime now) {
+    _unlock?.cancel();
+    if (until == null) return;
+    final wait = until.difference(now);
+    if (wait <= Duration.zero) return;
+    _unlock = Timer(wait + const Duration(seconds: 1), () {
+      if (mounted) setState(() {});
+    });
   }
 
   bool get _create => widget.createAccount;
@@ -78,7 +95,13 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
     });
     final rules = PasswordRules(_password.text);
     final error = state.error;
-    final locked = error is LockedOut;
+    final lockout = error is LockedOut ? error : null;
+    final now = ref.read(clockProvider)();
+    final locked = lockout != null && now.isBefore(lockout.until);
+    _scheduleUnlock(locked ? lockout.until : null, now);
+    // Keep the expired lockout in the controller for its own re-check, but do
+    // not keep the screen disabled or show a stale "paused until" banner.
+    final visibleError = lockout != null && !locked ? null : error;
     final canSubmit = _create
         ? rules.valid && _email.text.isNotEmpty
         : _email.text.isNotEmpty && _password.text.isNotEmpty && !locked;
@@ -93,10 +116,10 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
           children: [
             _Tabs(createAccount: _create, onChanged: _switchTab),
             const SizedBox(height: 24),
-            if (error != null &&
-                error is! WrongPassword &&
-                error is! InvalidEmail) ...[
-              OmaBanner(message: _bannerText(error)),
+            if (visibleError != null &&
+                visibleError is! WrongPassword &&
+                visibleError is! InvalidEmail) ...[
+              OmaBanner(message: _bannerText(visibleError)),
               const SizedBox(height: 16),
             ],
             OmaField(
@@ -105,7 +128,9 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email],
-              errorText: error is InvalidEmail ? 'Enter a full email' : null,
+              errorText: visibleError is InvalidEmail
+                  ? 'Enter a full email'
+                  : null,
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
@@ -117,9 +142,9 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
               autofillHints: [
                 _create ? AutofillHints.newPassword : AutofillHints.password,
               ],
-              errorText: error is WrongPassword
-                  ? 'Wrong email or password. ${_tries(error.triesLeft)} left '
-                        'before a 15-minute pause.'
+              errorText: visibleError is WrongPassword
+                  ? 'Wrong email or password. ${_tries(visibleError.triesLeft)} '
+                        'left before a 15-minute pause.'
                   : null,
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => canSubmit ? _submit() : null,

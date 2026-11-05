@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oma_app/app/app.dart';
 import 'package:oma_app/core/theme/oma_theme.dart';
+import 'package:oma_app/features/auth/presentation/sign_in_screen.dart';
 import 'package:oma_app/features/auth/presentation/splash_screen.dart';
 import 'package:oma_app/features/auth/presentation/welcome_screen.dart';
 import 'package:oma_app/features/auth/presentation/widgets/splash_intro.dart';
@@ -80,7 +81,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(cta));
       await tester.pumpAndSettle();
-      expect(find.textContaining('M02'), findsOneWidget, reason: cta);
+      expect(find.byType(SignInScreen), findsOneWidget, reason: cta);
     }
   });
 

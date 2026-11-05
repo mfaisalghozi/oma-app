@@ -12,7 +12,14 @@ class ModelFetcher {
     required this.sha256Hex,
     required this.directory,
     Dio? dio,
-  }) : _dio = dio ?? Dio();
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 15),
+               receiveTimeout: const Duration(seconds: 60),
+             ),
+           );
 
   final String url;
   final String sha256Hex;

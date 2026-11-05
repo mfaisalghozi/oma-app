@@ -84,8 +84,13 @@ class ImagePickerPhotoPicker implements PhotoPicker {
   Future<List<String>> pick({required int max}) async {
     if (max <= 0) return const [];
     final files = max == 1
-        ? [?await _picker.pickImage(source: ImageSource.gallery)]
-        : await _picker.pickMultiImage(limit: max);
+        ? [
+            ?await _picker.pickImage(
+              source: ImageSource.gallery,
+              requestFullMetadata: false,
+            ),
+          ]
+        : await _picker.pickMultiImage(limit: max, requestFullMetadata: false);
     return [for (final f in files.take(max)) f.path];
   }
 }

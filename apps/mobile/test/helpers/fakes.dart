@@ -8,9 +8,11 @@ import 'package:oma_app/features/auth/domain/entities/account_state.dart';
 import 'package:oma_app/features/auth/domain/entities/auth_session.dart';
 import 'package:oma_app/features/auth/domain/repositories/account_repository.dart';
 import 'package:oma_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:oma_app/features/auth/domain/repositories/social_auth_repository.dart';
 import 'package:oma_app/features/onboarding/application/onboarding_draft_controller.dart';
 import 'package:oma_app/features/onboarding/domain/entities/onboarding_draft.dart';
 import 'package:oma_app/features/onboarding/domain/repositories/onboarding_draft_store.dart';
+import 'package:oma_app/features/photos/domain/photo_upload.dart';
 
 const testConfig = AppConfig(
   flavor: 'test',
@@ -69,6 +71,17 @@ class FakeAuthRepository implements AuthRepository, AccessTokenSource {
   }
 }
 
+class FakeSocialAuthRepository implements SocialAuthRepository {
+  @override
+  bool get appleAvailable => false;
+
+  @override
+  Future<void> signInWithGoogle() async {}
+
+  @override
+  Future<void> signInWithApple() async {}
+}
+
 class FakeAccountRepository implements AccountRepository {
   FakeAccountRepository(this.result);
 
@@ -107,6 +120,21 @@ class MemoryDraftStore implements OnboardingDraftStore {
   }
 }
 
+class NoopPhotoRepository implements PhotoRepository {
+  @override
+  Future<List<UploadSlot>> reserve(List<PhotoFileMeta> files) async => const [];
+
+  @override
+  Future<UploadSlot> refreshSlot(String photoId) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> delete(String photoId) async {}
+
+  @override
+  Future<Map<String, String>> signedUrls() async => const {};
+}
+
 List<Override> baseOverrides({
   required FakeAuthRepository auth,
   required FakeAccountRepository accounts,
@@ -117,4 +145,5 @@ List<Override> baseOverrides({
   authRepositoryProvider.overrideWithValue(auth),
   accessTokenSourceProvider.overrideWithValue(auth),
   accountRepositoryProvider.overrideWithValue(accounts),
+  socialAuthRepositoryProvider.overrideWithValue(FakeSocialAuthRepository()),
 ];

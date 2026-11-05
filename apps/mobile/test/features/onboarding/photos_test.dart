@@ -217,6 +217,31 @@ void main() {
       expect(storage.uploads.single, startsWith('p1:'));
     });
 
+    test('photosDone is false while an upload is in flight', () async {
+      final c = await create();
+      storage.hold = Completer<void>();
+      picker.next = [_file('a')];
+      final add = c.read(photoGridProvider.notifier).add();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(photos(c), hasLength(1));
+      expect(c.read(onboardingDraftProvider).value!.photosDone, isFalse);
+
+      storage.hold!.complete();
+      await add;
+      expect(c.read(onboardingDraftProvider).value!.photosDone, isTrue);
+    });
+
+    test('a failed upload does not count as photosDone', () async {
+      final c = await create();
+      storage.failures.add(const NetworkFailure());
+      picker.next = [_file('a')];
+      await c.read(photoGridProvider.notifier).add();
+
+      expect(photos(c).single.status, DraftPhotoStatus.failed);
+      expect(c.read(onboardingDraftProvider).value!.photosDone, isFalse);
+    });
+
     test('an expired token is refreshed and the upload retried', () async {
       final c = await create();
       storage.failures.add(

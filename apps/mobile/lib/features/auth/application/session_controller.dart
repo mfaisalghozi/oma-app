@@ -53,7 +53,7 @@ class SessionController extends AsyncNotifier<AppSession> {
   }
 
   Future<void> signOut() async {
-    await ref.read(onboardingDraftStoreProvider).clear();
+    await ref.read(onboardingDraftCleanupProvider)();
     await ref.read(authRepositoryProvider).signOut();
   }
 
@@ -72,6 +72,9 @@ class SessionController extends AsyncNotifier<AppSession> {
     };
     // Token refreshes and the initial event repeat the same user: no reload.
     if (unchanged) return;
+    if (user == null && current is SignedIn) {
+      await ref.read(onboardingDraftCleanupProvider)();
+    }
     if (user != null && user.emailConfirmed) {
       ref.read(pendingEmailConfirmationProvider.notifier).set(null);
     }

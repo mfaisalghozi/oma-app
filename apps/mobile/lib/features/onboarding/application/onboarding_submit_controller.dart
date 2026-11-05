@@ -97,7 +97,14 @@ class OnboardingSubmitController extends Notifier<SubmitState> {
 
       phase = SetupPhase.photos;
       state = SubmitRunning(phase);
-      await _finishUploads();
+      final photosReady = await ref
+          .read(photoGridProvider.notifier)
+          .uploadPending();
+      if (!photosReady) {
+        state = const SubmitNeedsFix(OnboardingStep.photos, ['photos']);
+        return;
+      }
+
       final draft = ref.read(onboardingDraftProvider).value!;
       try {
         await ref
@@ -134,21 +141,6 @@ class OnboardingSubmitController extends Notifier<SubmitState> {
       state = SubmitFailed(phase, e);
     } on Object catch (e) {
       state = SubmitFailed(phase, UnexpectedFailure('$e'));
-    }
-  }
-
-  Future<void> _finishUploads() async {
-    final grid = ref.read(photoGridProvider.notifier);
-    final pending = [
-      for (final p in ref.read(onboardingDraftProvider).value!.photos)
-        if (!p.isUploaded) p.localPath,
-    ];
-    for (final key in pending) {
-      await grid.retry(key);
-    }
-    final photos = ref.read(onboardingDraftProvider).value!.photos;
-    if (photos.any((p) => !p.isUploaded)) {
-      throw const NetworkFailure('photo upload pending');
     }
   }
 }
