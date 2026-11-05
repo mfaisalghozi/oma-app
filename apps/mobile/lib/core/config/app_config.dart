@@ -11,6 +11,7 @@ class AppConfig {
     this.googleWebClientId = '',
     this.googleIosClientId = '',
     this.webBaseUrl = 'https://oma.app',
+    this.nsfwModel = const NsfwModelSource(),
   });
 
   factory AppConfig.fromEnvironment() => const AppConfig(
@@ -32,6 +33,18 @@ class AppConfig {
       'WEB_BASE_URL',
       defaultValue: 'https://oma.app',
     ),
+    nsfwModel: NsfwModelSource(
+      androidUrl: String.fromEnvironment('NSFW_MODEL_URL_ANDROID'),
+      androidSha256: String.fromEnvironment('NSFW_MODEL_SHA256_ANDROID'),
+      iosUrl: String.fromEnvironment('NSFW_MODEL_URL_IOS'),
+      iosSha256: String.fromEnvironment('NSFW_MODEL_SHA256_IOS'),
+      threshold: _threshold,
+    ),
+  );
+
+  static const _threshold = String.fromEnvironment(
+    'NSFW_THRESHOLD',
+    defaultValue: '0.7',
   );
 
   final String flavor;
@@ -51,6 +64,8 @@ class AppConfig {
   /// TODO(web): confirm the domain; `oma.app` is a placeholder.
   final String webBaseUrl;
 
+  final NsfwModelSource nsfwModel;
+
   Uri get termsUrl => Uri.parse('$webBaseUrl/terms');
   Uri get privacyUrl => Uri.parse('$webBaseUrl/privacy');
 
@@ -61,3 +76,23 @@ class AppConfig {
 final appConfigProvider = Provider<AppConfig>(
   (ref) => throw UnimplementedError('appConfigProvider must be overridden'),
 );
+
+class NsfwModelSource {
+  const NsfwModelSource({
+    this.androidUrl = '',
+    this.androidSha256 = '',
+    this.iosUrl = '',
+    this.iosSha256 = '',
+    this.threshold = '0.7',
+  });
+
+  final String androidUrl;
+  final String androidSha256;
+  final String iosUrl;
+  final String iosSha256;
+
+  /// A string because `double.fromEnvironment` doesn't exist.
+  final String threshold;
+
+  double get thresholdValue => double.tryParse(threshold) ?? 0.7;
+}
