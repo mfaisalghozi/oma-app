@@ -316,17 +316,13 @@ void main() {
 
     List<Override> screenOverrides() => [
       ...overrides(),
-      photoThumbBuilderProvider.overrideWithValue(
-        (tile) => ColoredBox(
-          color:
-              colors[tile.key
-                      .split('/')
-                      .last
-                      .codeUnits
-                      .fold(0, (a, b) => a + b) %
-                  colors.length],
-        ),
-      ),
+      photoThumbBuilderProvider.overrideWithValue((tile) {
+        // Stable regardless of temp paths and test order.
+        final seed = tile.photoId ?? tile.status.name;
+        final color =
+            colors[seed.codeUnits.fold(0, (a, b) => a + b) % colors.length];
+        return ColoredBox(color: color);
+      }),
     ];
 
     Future<void> pump(WidgetTester tester, GoldenTheme theme) async {
