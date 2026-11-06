@@ -1,0 +1,69 @@
+name: Mobile integration tests
+
+# Placeholder: runs `integration_test/` on an Android emulator. Manual only,
+# because emulator runs are slow (~10-15 min) and there are no integration
+# tests yet. Skips cleanly until apps/mobile/integration_test/ exists.
+# When tests land: add `integration_test: {sdk: flutter}` to dev_dependencies
+# and consider adding a nightly `schedule:` trigger here.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.9"
+
+jobs:
+  android-emulator:
+    name: Android emulator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for integration tests
+        id: has
+        run: |
+          if [ -d apps/mobile/integration_test ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No apps/mobile/integration_test/ yet; skipping."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.has.outputs.run == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - if: steps.has.outputs.run == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - if: steps.has.outputs.run == 'true'
+        name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - if: steps.has.outputs.run == 'true'
+        name: Install packages
+        working-directory: apps/mobile
+        run: flutter pub get --enforce-lockfile
+
+      - if: steps.has.outputs.run == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          working-directory: apps/mobile
+          script: flutter test integration_test

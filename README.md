@@ -236,6 +236,38 @@ Keep the Nx project name as `web` and use the root npm lockfile. See the
 [npm workspaces guide](https://docs.npmjs.com/cli/using-npm/workspaces/) for
 workspace dependency management.
 
+## CI/CD
+
+GitHub Actions workflows live in `.github/workflows/`:
+
+| Workflow | Runs on | What it does |
+| --- | --- | --- |
+| `mobile-ci.yml` | PRs and pushes to `main` / `release/**` touching `apps/mobile` | `pub get --enforce-lockfile`, `dart format` check, `flutter analyze --fatal-infos`, `flutter test --coverage` (goldens included). Golden diffs are uploaded as the `golden-failures` artifact when a test fails. |
+| `mobile-cd.yml` | `v*` tags and manual runs | Release AAB + APK (Ubuntu) and an unsigned `Runner.app` zip (macOS), uploaded as workflow artifacts. Tag `v0.1.0` builds version `0.1.0`; the build number is the workflow run number. |
+| `mobile-integration.yml` | Manual only | Placeholder that runs `integration_test/` on an Android emulator. Skips until `apps/mobile/integration_test/` exists. |
+
+### Goldens and the pinned toolchain
+
+Golden images are compared pixel-for-pixel, so CI pins Flutter `3.47.9` and the
+`ubuntu-24.04` runner. Goldens rendered on macOS or Windows will not match.
+Regenerate them on Linux with the same Flutter version
+(`flutter test --update-goldens`). To bump Flutter, change `FLUTTER_VERSION` in
+every workflow, regenerate goldens, and commit both in one PR.
+
+### Secrets
+
+| Secret | Used by | Status |
+| --- | --- | --- |
+| `DART_DEFINES_JSON` | CD builds | Optional now. JSON passed with `--dart-define-from-file` (same keys as `config/dev.example.json`). Without it, builds have no Supabase/API config. |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Android release signing | TODO. Release builds currently use the debug key. |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Play Console upload | TODO. Needs the Play developer account. |
+| `IOS_DIST_CERT_P12_BASE64`, `IOS_DIST_CERT_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64` | iOS signing (`flutter build ipa`) | TODO. Needs the Apple Developer account. |
+| `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_P8` | TestFlight upload | TODO. |
+| `GOOGLE_SERVICES_JSON_BASE64`, `GOOGLE_SERVICE_INFO_PLIST_BASE64` | Firebase (FCM, Crashlytics) | TODO. Needs the Firebase projects. |
+
+The TODO steps are marked with `TODO(signing)`, `TODO(store)` and
+`TODO(firebase)` comments in `mobile-cd.yml`.
+
 ## Shared contracts
 
 `libs/contracts/openapi.yaml` defines the shared API contract. No separate
