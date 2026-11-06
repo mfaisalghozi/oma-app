@@ -90,16 +90,20 @@ class NsfwDetectPhotoScanner implements PhotoScanner {
     }
     // Fail closed: a scan that didn't complete never counts as safe.
     if (!r.completed) throw const DeviceFailure('nsfw scan incomplete');
-    if (r.confidence < threshold) return const PhotoAllowed();
+    // Category first: an unknown verdict is not evidence of safety at any
+    // confidence, so it must never reach the threshold shortcut below.
     return switch (r.category) {
-      NsfwCategory.nudity => const PhotoRejected(PhotoRejectReason.nudity),
-      NsfwCategory.explicitNudity => const PhotoRejected(
-        PhotoRejectReason.explicitNudity,
-      ),
+      NsfwCategory.unknown => throw const DeviceFailure('nsfw scan unknown'),
       // Suggestive (swimwear, gym, freediving) is allowed on purpose.
       NsfwCategory.safe || NsfwCategory.suggestive => const PhotoAllowed(),
-      // Unknown is not evidence of safety.
-      NsfwCategory.unknown => throw const DeviceFailure('nsfw scan unknown'),
+      NsfwCategory.nudity || NsfwCategory.explicitNudity =>
+        r.confidence < threshold
+            ? const PhotoAllowed()
+            : PhotoRejected(
+                r.category == NsfwCategory.nudity
+                    ? PhotoRejectReason.nudity
+                    : PhotoRejectReason.explicitNudity,
+              ),
     };
   }
 }
