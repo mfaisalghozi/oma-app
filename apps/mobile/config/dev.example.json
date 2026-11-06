@@ -1,0 +1,16 @@
+{
+  "FLAVOR": "dev",
+  "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "YOUR-PUBLISHABLE-KEY",
+  "API_BASE_URL": "http://10.0.2.2:8080",
+  "AUTH_REDIRECT_URL": "com.mfaisalghozi.omaapp://auth/callback",
+  "AUTH_PHONE_ENABLED": "false",
+  "GOOGLE_WEB_CLIENT_ID": "",
+  "GOOGLE_IOS_CLIENT_ID": "",
+  "WEB_BASE_URL": "https://oma.app",
+  "NSFW_MODEL_URL_ANDROID": "https://<mirror>/models/opennsfw2-v1.tflite",
+  "NSFW_MODEL_SHA256_ANDROID": "<sha256 hex>",
+  "NSFW_MODEL_URL_IOS": "https://<mirror>/models/opennsfw2-v1.mlmodel",
+  "NSFW_MODEL_SHA256_IOS": "<sha256 hex>",
+  "NSFW_THRESHOLD": "0.7"
+}

@@ -35,7 +35,8 @@ jobs:
     name: Resolve version
     runs-on: ubuntu-24.04
     outputs:
-      build_args: ${{ steps.v.outputs.build_args }}
+      name: ${{ steps.v.outputs.name }}
+      number: ${{ steps.v.outputs.number }}
       label: ${{ steps.v.outputs.label }}
     defaults:
       run:
@@ -52,15 +53,47 @@ jobs:
           if [ -z "$name" ] && [ "$REF_TYPE" = "tag" ]; then
             name="${REF_NAME#v}"
           fi
-          # Build number must only go up: the run number does that for free.
-          args="--build-number=$RUN_NUMBER"
-          if [ -n "$name" ]; then args="--build-name=$name $args"; fi
-          echo "build_args=$args" >> "$GITHUB_OUTPUT"
-          echo "label=${name:-pubspec}-$RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          if [ -n "$name" ] && ! printf '%s' "$name" | grep -Eq '^[0-9A-Za-z._-]+$'; then
+            echo "::error::build_name may only contain letters, digits, dot, underscore and dash."
+            exit 1
+          fi
+          # Keep artifact names safe even if the manual input has spaces/slashes.
+          label="$(printf '%s' "${name:-pubspec}" | tr -c 'A-Za-z0-9._-' '-')-$RUN_NUMBER"
+          {
+            echo "name=$name"
+            echo "number=$RUN_NUMBER"
+            echo "label=$label"
+          } >> "$GITHUB_OUTPUT"
+
+  check:
+    name: Format, analyze, test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Install packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        run: flutter test --reporter github
 
   android:
     name: Android (AAB + APK)
-    needs: version
+    needs: [version, check]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -89,13 +122,12 @@ jobs:
         env:
           DART_DEFINES_JSON: ${{ secrets.DART_DEFINES_JSON }}
         run: |
-          mkdir -p config
-          if [ -n "$DART_DEFINES_JSON" ]; then
-            printf '%s' "$DART_DEFINES_JSON" > config/ci.json
-          else
-            echo "::warning::DART_DEFINES_JSON secret not set; building without Supabase/API config."
-            echo '{}' > config/ci.json
+          if [ -z "$DART_DEFINES_JSON" ]; then
+            echo "::error::DART_DEFINES_JSON is required for release builds."
+            exit 1
           fi
+          mkdir -p config
+          printf '%s' "$DART_DEFINES_JSON" > config/ci.json
 
       # TODO(signing): decode ANDROID_KEYSTORE_BASE64 into android/upload.jks,
       # write android/key.properties from ANDROID_KEYSTORE_PASSWORD,
@@ -106,10 +138,22 @@ jobs:
       # android/app/google-services.json once the Firebase project exists.
 
       - name: Build app bundle
-        run: flutter build appbundle --release ${{ needs.version.outputs.build_args }} --dart-define-from-file=config/ci.json
+        env:
+          BUILD_NAME: ${{ needs.version.outputs.name }}
+          BUILD_NUMBER: ${{ needs.version.outputs.number }}
+        run: |
+          args=(--build-number="$BUILD_NUMBER")
+          if [ -n "$BUILD_NAME" ]; then args+=(--build-name="$BUILD_NAME"); fi
+          flutter build appbundle --release "${args[@]}" --dart-define-from-file=config/ci.json
 
       - name: Build APK
-        run: flutter build apk --release ${{ needs.version.outputs.build_args }} --dart-define-from-file=config/ci.json
+        env:
+          BUILD_NAME: ${{ needs.version.outputs.name }}
+          BUILD_NUMBER: ${{ needs.version.outputs.number }}
+        run: |
+          args=(--build-number="$BUILD_NUMBER")
+          if [ -n "$BUILD_NAME" ]; then args+=(--build-name="$BUILD_NAME"); fi
+          flutter build apk --release "${args[@]}" --dart-define-from-file=config/ci.json
 
       - uses: actions/upload-artifact@v5
         with:
@@ -126,7 +170,7 @@ jobs:
 
   ios:
     name: iOS (no codesign)
-    needs: version
+    needs: [version, check]
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -146,19 +190,24 @@ jobs:
         env:
           DART_DEFINES_JSON: ${{ secrets.DART_DEFINES_JSON }}
         run: |
-          mkdir -p config
-          if [ -n "$DART_DEFINES_JSON" ]; then
-            printf '%s' "$DART_DEFINES_JSON" > config/ci.json
-          else
-            echo "::warning::DART_DEFINES_JSON secret not set; building without Supabase/API config."
-            echo '{}' > config/ci.json
+          if [ -z "$DART_DEFINES_JSON" ]; then
+            echo "::error::DART_DEFINES_JSON is required for release builds."
+            exit 1
           fi
+          mkdir -p config
+          printf '%s' "$DART_DEFINES_JSON" > config/ci.json
 
       # TODO(firebase): decode GOOGLE_SERVICE_INFO_PLIST_BASE64 into
       # ios/Runner/GoogleService-Info.plist once the Firebase project exists.
 
       - name: Build iOS (unsigned)
-        run: flutter build ios --release --no-codesign ${{ needs.version.outputs.build_args }} --dart-define-from-file=config/ci.json
+        env:
+          BUILD_NAME: ${{ needs.version.outputs.name }}
+          BUILD_NUMBER: ${{ needs.version.outputs.number }}
+        run: |
+          args=(--build-number="$BUILD_NUMBER")
+          if [ -n "$BUILD_NAME" ]; then args+=(--build-name="$BUILD_NAME"); fi
+          flutter build ios --release --no-codesign "${args[@]}" --dart-define-from-file=config/ci.json
 
       - name: Zip Runner.app
         run: |
