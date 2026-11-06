@@ -197,6 +197,20 @@ void main() {
       expect(c.read(onboardingDraftProvider).value, isNull);
     });
 
+    test('typing then signing out does not resurrect the draft', () async {
+      final c = create();
+      await c.read(sessionControllerProvider.future);
+      await c.read(onboardingDraftProvider.future);
+      c
+          .read(onboardingDraftProvider.notifier)
+          .editTyping((d) => d.copyWith(fullName: const Nullable('Rania')));
+      await c.read(sessionControllerProvider.notifier).signOut();
+      await pumpEventQueue();
+      // The typing debounce fires after sign-out has cleared storage.
+      await Future<void>.delayed(OnboardingDraftController.typingDelay * 2);
+      expect(store.saved, isNull);
+    });
+
     test('signing in as another user loads a fresh draft', () async {
       store.saved = _complete('u1');
       final c = create();

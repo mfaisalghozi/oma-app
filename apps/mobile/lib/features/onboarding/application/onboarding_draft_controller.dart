@@ -55,10 +55,10 @@ class OnboardingDraftController extends AsyncNotifier<OnboardingDraft?> {
   Future<OnboardingDraft?> build() async {
     final store = ref.read(onboardingDraftStoreProvider);
     ref.onDispose(() {
+      // Dispose also happens on sign-out, after the cleanup provider cleared the
+      // store: saving the buffered draft here would resurrect those answers.
       _pending?.cancel();
-      final d = _unsaved;
       _unsaved = null;
-      if (d != null) unawaited(store.save(d));
     });
     final userId = ref.watch(_currentUserIdProvider);
     if (userId == null) return null;
