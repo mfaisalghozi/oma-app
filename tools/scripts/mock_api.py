@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
 """Mock OMA API for local mobile runs.
 
-Implements the endpoints the Flutter app calls under /v1 so the app can be
-exercised end to end before the Go API exists. Every response uses the real
-envelopes: {"data": ...} on success, {"error": {code, message, details}} on
-failure.
+Serves the endpoints the Flutter app calls under /v1, so the app can be walked
+end to end before apps/api has handlers. Run `python tools/scripts/mock_api.py`
+and point API_BASE_URL at it; the Android emulator reaches host loopback at
+http://10.0.2.2:8080.
 
-Run it, point API_BASE_URL at it, and the app behaves as if a backend answered:
+State is in memory, so restarting resets the onboarding flow. Requests are
+logged, which is the quickest way to see what the app actually calls.
 
-    python tools/scripts/mock_api.py            # 127.0.0.1:8080
-    python tools/scripts/mock_api.py --port 9000
-
-The Android emulator reaches the host loopback as http://10.0.2.2:8080, which is
-already the API_BASE_URL in apps/mobile/config/dev.example.json.
-
-State is in memory and per-process, so restarting the script resets the
-onboarding flow. Each request is logged to stdout, which is the fastest way to
-see what the app actually calls.
-
-Not implemented on purpose: photo bytes still go to Supabase Storage through the
-signed upload token, so M09 uploads fail even with this mock. Return fake
-storage here and the app would believe a photo exists that nobody can read.
+Photo bytes are not faked: the app uploads to Supabase Storage with the signed
+token, so M09 still fails here. A fake bucket would assert a photo exists that
+nobody can read.
 """
 
 from __future__ import annotations
@@ -36,7 +27,7 @@ STATE = {
     "user_id": "11111111-2222-3333-4444-555555555555",
     "consents_accepted": False,
     "onboarding_done": False,
-    "photos": {},  # photo_id -> {"path": ..., "position": ...}
+    "photos": {},
 }
 
 MASTER_DATA = {
@@ -149,9 +140,7 @@ def next_action() -> str:
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    # ---------- plumbing ----------
-
-    def log_message(self, fmt: str, *args) -> None:  # noqa: A003
+    def log_message(self, fmt: str, *args) -> None:
         pass
 
     def _body(self) -> dict:
@@ -190,9 +179,7 @@ class Handler(BaseHTTPRequestHandler):
             flush=True,
         )
 
-    # ---------- routes ----------
-
-    def do_OPTIONS(self) -> None:  # noqa: N802
+    def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "*, Authorization, Idempotency-Key")
@@ -200,7 +187,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         url = urlparse(self.path)
         path, query = url.path, parse_qs(url.query)
 
@@ -223,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
 
         return self._error(404, "NOT_FOUND", f"no mock route for GET {path}")
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         url = urlparse(self.path)
         path = url.path
         body = self._body()
@@ -281,15 +268,13 @@ class Handler(BaseHTTPRequestHandler):
 
         return self._error(404, "NOT_FOUND", f"no mock route for POST {path}")
 
-    def do_DELETE(self) -> None:  # noqa: N802
+    def do_DELETE(self) -> None:
         path = urlparse(self.path).path
         if path.startswith("/v1/photos/"):
             photo_id = path[len("/v1/photos/") :]
             STATE["photos"].pop(photo_id, None)
             return self._data({"deleted": True})
         return self._error(404, "NOT_FOUND", f"no mock route for DELETE {path}")
-
-    # ---------- helpers ----------
 
     def _slot(self, photo_id: str | None = None) -> dict:
         pid = photo_id or str(uuid.uuid4())
