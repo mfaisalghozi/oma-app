@@ -200,6 +200,27 @@ void main() {
       expect(nextEnabled(tester), isFalse);
     });
 
+    testWidgets('a blank height and weight say Required once Next is tapped', (
+      tester,
+    ) async {
+      store.saved = _basics().copyWith(
+        bio: const Nullable('Weekend freediver, weekday coffee snob.'),
+        lookingForIds: const ['lf-Long-term'],
+      );
+      await pump(tester, const AboutYouScreen());
+      expect(
+        find.text('Required.'),
+        findsNothing,
+        reason: 'no error text on the first paint',
+      );
+
+      await tester.tap(find.text('Next'));
+      await tester.pump();
+
+      expect(find.text('Required.'), findsNWidgets(2));
+      expect(nextEnabled(tester), isFalse);
+    });
+
     testWidgets('university search picks and saves', (tester) async {
       store.saved = _basics();
       await pump(tester, const AboutYouScreen());
