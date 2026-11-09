@@ -17,7 +17,7 @@ class ApiMasterDataRepository implements MasterDataRepository {
     int limit = 20,
   }) async {
     final data = await _api.get(
-      '/master-data',
+      '/profile-data',
       query: {
         'type': type.wire,
         if (query != null && query.isNotEmpty) 'q': query,
@@ -27,7 +27,7 @@ class ApiMasterDataRepository implements MasterDataRepository {
       },
     );
     if (data is! Map) {
-      throw const UnexpectedFailure('master-data: unexpected body');
+      throw const UnexpectedFailure('profile-data: unexpected body');
     }
     final items = [
       for (final i in (data['items'] as List?) ?? const [])
