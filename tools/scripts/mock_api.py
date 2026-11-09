@@ -197,7 +197,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/consents/documents":
             return self._data(CONSENT_DOCUMENTS)
 
-        if path == "/v1/master-data":
+        if path == "/v1/profile-data":
             return self._master_data(query)
 
         if path == "/v1/photos":
