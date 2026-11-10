@@ -47,6 +47,19 @@ func (h *Handler) transaction(r *http.Request) (*sql.Tx, error) {
 	}
 	return tx, nil
 }
+
+// processingTransaction locks consent changes and photo mutations on the same account.
+func (h *Handler) processingTransaction(r *http.Request) (*sql.Tx, error) {
+	tx, err := h.transaction(r)
+	if err != nil {
+		return nil, err
+	}
+	if err = account.RequireConsents(r.Context(), tx, auth.UserID(r.Context())); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	return tx, nil
+}
 func (h *Handler) Reserve(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Photos []struct {
@@ -68,7 +81,7 @@ func (h *Handler) Reserve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	tx, err := h.transaction(r)
+	tx, err := h.processingTransaction(r)
 	if err != nil {
 		httpapi.HandleError(w, err)
 		return
@@ -111,7 +124,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		httpapi.Fail(w, 404, "PHOTO_NOT_FOUND")
 		return
 	}
-	tx, err := h.transaction(r)
+	tx, err := h.processingTransaction(r)
 	if err != nil {
 		httpapi.HandleError(w, err)
 		return
@@ -195,7 +208,7 @@ func (h *Handler) Patch(w http.ResponseWriter, r *http.Request) {
 		httpapi.Fail(w, 422, "INVALID_PHOTO_DATA")
 		return
 	}
-	tx, err := h.transaction(r)
+	tx, err := h.processingTransaction(r)
 	if err != nil {
 		httpapi.HandleError(w, err)
 		return

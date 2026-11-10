@@ -1053,6 +1053,82 @@ paths:
         "403": *a11
         "422": *a12
         "500": *a13
+  /v1/me/consents/revocations:
+    post:
+      operationId: revokeConsents
+      summary: Append revocation decisions and restrict processing until required
+        consent is re-accepted
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentRevocation"
+      responses:
+        "200":
+          description: Revocation recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - revoked
+                    properties:
+                      revoked:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - type
+                            - revoked_at
+                          properties:
+                            type:
+                              type: string
+                            revoked_at:
+                              type: string
+                              format: date-time
+        "400":
+          description: Unsupported type, invalid request, restricted account, or
+            persistence failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Unsupported type, invalid request, restricted account, or
+            persistence failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Unsupported type, invalid request, restricted account, or
+            persistence failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: Unsupported type, invalid request, restricted account, or
+            persistence failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Unsupported type, invalid request, restricted account, or
+            persistence failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:
@@ -1151,7 +1227,7 @@ components:
         - type
         - version
         - decision
-        - accepted_at
+        - recorded_at
       properties:
         type: *a15
         version: *a14
@@ -1162,6 +1238,12 @@ components:
             - rejected
             - revoked
         accepted_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+        revoked_at:
           type: string
           format: date-time
       additionalProperties: false
@@ -1486,3 +1568,24 @@ components:
         show_me_option_id: *a17
         looking_for_ids: *a26
         hobby_ids: *a27
+    ConsentRevocation:
+      type: object
+      required:
+        - consent_types
+      additionalProperties: false
+      properties:
+        consent_types:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - terms
+              - privacy
+              - sensitive_data
+        reason:
+          type: string
+          maxLength: 1000
+          nullable: true

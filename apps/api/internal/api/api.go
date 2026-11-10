@@ -45,6 +45,7 @@ func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) htt
 	mux.HandleFunc("GET /v1/consents/documents", consents.Documents)
 	mux.Handle("GET /v1/me/consents", auth.Middleware(verifier, accounts.Active(http.HandlerFunc(consents.Read))))
 	mux.Handle("POST /v1/me/consents", auth.Middleware(verifier, accounts.Active(http.HandlerFunc(consents.Accept))))
+	mux.Handle("POST /v1/me/consents/revocations", guard(consents.Revoke))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()

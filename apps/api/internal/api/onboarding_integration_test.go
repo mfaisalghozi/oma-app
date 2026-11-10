@@ -118,6 +118,7 @@ func TestOnboardingRollsBackAfterDatabaseFailure(t *testing.T) {
 func TestOnboardingRejectsAnotherAccountsPhoto(t *testing.T) {
 	_, h, _, body := onboardingSetup(t)
 	call(t, h, "POST", "/v1/me/initialize", "bob", "", 200)
+	call(t, h, "POST", "/v1/me/consents", "bob", acceptAll, 200)
 	other := call(t, h, "POST", "/v1/photos/upload-urls", "bob", uploadOne, 201)["data"].([]any)[0].(map[string]any)
 	body["photos"] = []map[string]any{{"photo_id": other["photo_id"], "position": 1}}
 	got := call(t, h, "POST", "/v1/me/onboarding", "alice", payload(t, body), 422)

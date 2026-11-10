@@ -11,9 +11,6 @@ import (
 	"oma/apps/api/internal/platform/httpapi"
 )
 
-type Queryer interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
 type Consents struct{ DB *sql.DB }
 type Document struct {
 	Type     string `json:"type"`
@@ -23,21 +20,16 @@ type Document struct {
 	Required bool   `json:"required"`
 }
 type Decision struct {
-	Type       string    `json:"type"`
-	Version    string    `json:"version"`
-	Decision   string    `json:"decision"`
-	RecordedAt time.Time `json:"accepted_at"`
+	Type       string     `json:"type"`
+	Version    string     `json:"version"`
+	Decision   string     `json:"decision"`
+	RecordedAt time.Time  `json:"recorded_at"`
+	AcceptedAt *time.Time `json:"accepted_at,omitempty"`
+	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
 }
 
-// RequiredConsent checks the latest decision across all versions, then requires
-// acceptance of every currently-required active version. An empty registry fails closed.
-func RequiredConsent(ctx context.Context, q Queryer, id string) (bool, error) {
-	var complete bool
-	err := q.QueryRowContext(ctx, `SELECT required_consents_completed($1)`, id).Scan(&complete)
-	return complete, err
-}
 func (c *Consents) Required(ctx context.Context, id string) (bool, error) {
-	return RequiredConsent(ctx, c.DB, id)
+	return account.RequiredConsentsComplete(ctx, c.DB, id)
 }
 func (c *Consents) Documents(w http.ResponseWriter, r *http.Request) {
 	rows, err := c.DB.QueryContext(r.Context(), `SELECT consent_type,title,document_version,document_url,required FROM consent_documents WHERE active ORDER BY consent_type`)
@@ -74,6 +66,12 @@ func latestConsents(ctx context.Context, db interface {
 		var d Decision
 		if err = rows.Scan(&d.Type, &d.Version, &d.Decision, &d.RecordedAt); err != nil {
 			return nil, err
+		}
+		at := d.RecordedAt
+		if d.Decision == "accepted" {
+			d.AcceptedAt = &at
+		} else if d.Decision == "revoked" {
+			d.RevokedAt = &at
 		}
 		out = append(out, d)
 	}
@@ -138,7 +136,7 @@ func (c *Consents) Accept(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	complete, err := RequiredConsent(r.Context(), tx, id)
+	complete, err := account.RequiredConsentsComplete(r.Context(), tx, id)
 	if err != nil {
 		httpapi.Fail(w, 500, "INTERNAL_SERVER_ERROR")
 		return

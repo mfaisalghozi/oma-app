@@ -204,3 +204,24 @@ available without consent; it removes only the authenticated user's row.
 No exact coordinates are logged or returned by these endpoints. After deletion,
 the discovery eligibility guard returns `LOCATION_REQUIRED` and candidate queries
 exclude that account until it stores a valid location again.
+
+## Consent revocation and processing restrictions
+
+`POST /v1/me/consents/revocations` accepts `consent_types` and an optional reason
+(up to 1,000 characters). It appends a new server-timestamped revoked decision;
+previous decisions remain immutable. Duplicate or unsupported types are rejected.
+The response returns each type and its `revoked_at` timestamp. Consent reads expose
+`recorded_at` for all decisions, `accepted_at` only for accepted decisions, and
+`revoked_at` only for revoked decisions. Reasons are not logged or returned.
+
+The user confirmed this policy: when any currently required agreement lacks
+current acceptance, initialization routes to `accept_consents`; discovery access,
+profile edits, location writes, and new photo capabilities/edits are blocked until
+re-acceptance. This also prevents initial sensitive photo processing before
+required consent. Initialization, consent APIs, own-data reads and deleting
+location/photos remain available to active accounts. Existing account suspensions
+and freezes continue to restrict protected endpoints.
+
+Revocation and processing mutations lock the same account row. Re-acceptance
+restores processing eligibility without overwriting consent history. This does not
+revoke already-issued Supabase capabilities; their provider expiry still applies.

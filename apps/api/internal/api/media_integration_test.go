@@ -47,6 +47,7 @@ func (s *storageFixture) Remove(_ context.Context, path string) error {
 }
 func mediaSetup(t *testing.T) (http.Handler, *storageFixture) {
 	db, _ := setup(t)
+	seedDocuments(t, db)
 	store := &storageFixture{objects: map[string]storage.Info{}}
 	return api.NewWithStorage(db, identityFixture{}, store), store
 }
@@ -55,8 +56,8 @@ const uploadOne = `{"photos":[{"filename":"../../someone-else.jpg","content_type
 
 func TestPhotoReservationQuotaOwnershipAndRefresh(t *testing.T) {
 	h, _ := mediaSetup(t)
-	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
-	call(t, h, "POST", "/v1/me/initialize", "bob", "", 200)
+	initializeConsented(t, h, "alice")
+	initializeConsented(t, h, "bob")
 	first := call(t, h, "POST", "/v1/photos/upload-urls", "alice", uploadOne, 201)["data"].([]any)[0].(map[string]any)
 	id := first["photo_id"].(string)
 	if !strings.HasPrefix(first["path"].(string), alice+"/") || strings.Contains(first["path"].(string), "..") {
@@ -82,7 +83,7 @@ func TestPhotoReservationQuotaOwnershipAndRefresh(t *testing.T) {
 
 func TestPhotoStorageFailureDoesNotConsumeQuota(t *testing.T) {
 	h, store := mediaSetup(t)
-	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	initializeConsented(t, h, "alice")
 	store.fail = true
 	call(t, h, "POST", "/v1/photos/upload-urls", "alice", uploadOne, 503)
 	store.fail = false
@@ -93,10 +94,11 @@ func TestPhotoStorageFailureDoesNotConsumeQuota(t *testing.T) {
 
 func TestPhotoOrderingPrimaryAndOwnership(t *testing.T) {
 	db, _ := setup(t)
+	seedDocuments(t, db)
 	store := &storageFixture{objects: map[string]storage.Info{}}
 	h := api.NewWithStorage(db, identityFixture{}, store)
-	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
-	call(t, h, "POST", "/v1/me/initialize", "bob", "", 200)
+	initializeConsented(t, h, "alice")
+	initializeConsented(t, h, "bob")
 	ids := []string{}
 	for range 2 {
 		p := call(t, h, "POST", "/v1/photos/upload-urls", "alice", uploadOne, 201)["data"].([]any)[0].(map[string]any)
@@ -138,7 +140,7 @@ func TestPhotoOrderingPrimaryAndOwnership(t *testing.T) {
 
 func TestConcurrentPhotoReservationsRespectQuota(t *testing.T) {
 	h, _ := mediaSetup(t)
-	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	initializeConsented(t, h, "alice")
 	photo := `{"content_type":"image/png","file_size":1000}`
 	body := `{"photos":[` + strings.Join([]string{photo, photo, photo, photo}, ",") + `]}`
 	results := make(chan int, 2)
@@ -167,9 +169,10 @@ func TestConcurrentPhotoReservationsRespectQuota(t *testing.T) {
 
 func TestClearingNonPrimaryPhotoPreservesExistingPrimary(t *testing.T) {
 	db, _ := setup(t)
+	seedDocuments(t, db)
 	store := &storageFixture{objects: map[string]storage.Info{}}
 	h := api.NewWithStorage(db, identityFixture{}, store)
-	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	initializeConsented(t, h, "alice")
 	ids := []string{}
 	for i := range 3 {
 		p := call(t, h, "POST", "/v1/photos/upload-urls", "alice", uploadOne, 201)["data"].([]any)[0].(map[string]any)
@@ -187,4 +190,10 @@ func TestClearingNonPrimaryPhotoPreservesExistingPrimary(t *testing.T) {
 			t.Fatalf("primary changed: %#v", out)
 		}
 	}
+}
+
+func initializeConsented(t *testing.T, h http.Handler, token string) {
+	t.Helper()
+	call(t, h, "POST", "/v1/me/initialize", token, "", 200)
+	call(t, h, "POST", "/v1/me/consents", token, acceptAll, 200)
 }

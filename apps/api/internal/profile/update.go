@@ -25,16 +25,6 @@ func lockCompleted(ctx context.Context, tx *sql.Tx, id string) error {
 	}
 	return nil
 }
-func requireConsents(ctx context.Context, q Queryer, id string) error {
-	ok, err := RequiredConsent(ctx, q, id)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return &httpapi.Error{Status: 403, Code: "CONSENT_REQUIRED"}
-	}
-	return nil
-}
 
 // The value indicates whether an explicitly supplied null may clear the field.
 var editableProfileFields = map[string]bool{
@@ -59,7 +49,7 @@ func (h *Handler) Patch(w http.ResponseWriter, r *http.Request) {
 		httpapi.HandleError(w, err)
 		return
 	}
-	if err = requireConsents(r.Context(), tx, id); err != nil {
+	if err = account.RequireConsents(r.Context(), tx, id); err != nil {
 		httpapi.HandleError(w, err)
 		return
 	}

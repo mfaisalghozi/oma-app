@@ -54,7 +54,7 @@ func (h *Handler) Onboarding(w http.ResponseWriter, r *http.Request) {
 		httpapi.Fail(w, 409, "ONBOARDING_ALREADY_COMPLETED")
 		return
 	}
-	consented, err := RequiredConsent(r.Context(), tx, id)
+	consented, err := account.RequiredConsentsComplete(r.Context(), tx, id)
 	if err != nil {
 		httpapi.HandleError(w, err)
 		return

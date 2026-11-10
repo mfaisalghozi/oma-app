@@ -3,6 +3,7 @@ package profile
 import (
 	"encoding/json"
 	"net/http"
+	"oma/apps/api/internal/account"
 	"oma/apps/api/internal/platform/auth"
 	"oma/apps/api/internal/platform/httpapi"
 	"time"
@@ -33,7 +34,7 @@ func (h *Handler) PutLocation(w http.ResponseWriter, r *http.Request) {
 		httpapi.HandleError(w, err)
 		return
 	}
-	if err = requireConsents(r.Context(), tx, id); err != nil {
+	if err = account.RequireConsents(r.Context(), tx, id); err != nil {
 		httpapi.HandleError(w, err)
 		return
 	}
