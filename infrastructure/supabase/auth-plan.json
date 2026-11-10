@@ -1,0 +1,46 @@
+{
+  "kind": "review-plan-not-an-importable-supabase-config",
+  "ticket": "ONB-BE-01",
+  "observed_on": "2026-11-05",
+  "environment": "existing production project",
+  "confirmed": {
+    "region": "ap-northeast-2",
+    "email_flow": "password_with_confirmation_link"
+  },
+  "preserve": {
+    "email_provider_enabled": true,
+    "confirm_email": true,
+    "current_signing_algorithm": "ES256"
+  },
+  "required_inputs": {
+    "google_client_ids": null,
+    "google_provider_credential": "configure securely in dashboard",
+    "apple_app_service_ids": null,
+    "apple_provider_credential": "configure securely in dashboard",
+    "production_site_url": null,
+    "mobile_redirect_uri": null,
+    "smtp_sender_domain": null,
+    "smtp_configuration": "configure securely in dashboard"
+  },
+  "not_applied": [
+    "provider enablement",
+    "redirect changes",
+    "SMTP configuration",
+    "Auth hooks",
+    "production schema migrations"
+  ],
+  "verification": "requires an approved non-production test environment",
+  "applied_password_policy": {
+    "minimum_length": 8,
+    "dashboard_requirements_label": "Letters and digits",
+    "state": "saved in production and verified by reopening Email provider settings"
+  },
+  "continuation": {
+    "date": "2026-11-08",
+    "read_only_check": "go run ./cmd/auth-check (from apps/api)",
+    "public_identifiers": "public-identifiers.json",
+    "confirmation_email_template": "templates/confirmation.html (proposed, not applied)",
+    "live_settings_rechecked": false,
+    "production_changes_applied": false
+  }
+}

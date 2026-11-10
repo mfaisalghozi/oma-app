@@ -3,6 +3,7 @@
 The runtime uses Supabase PostgreSQL, Supabase Auth and private Supabase Storage.
 Local PostgreSQL/PostGIS is used only for disposable integration tests.
 
+
 ## Runtime setup
 
 Install Go 1.26+ and run `npm ci` at the monorepo root. From `apps/api`, run
@@ -171,7 +172,8 @@ Per the user's scope decision, there is **no discovery HTTP endpoint** yet.
   account, completed onboarding, current required consent and a stored location.
 - `CandidateIDs(ctx, viewerID, limit)`: use the authenticated JWT subject for
   `viewerID`. A read-only repeatable-read transaction checks the viewer and filters
-  candidates to active completed profiles with current consent and a location.
+  candidates to active completed profiles with current consent, a location and at
+  least one active photo, as required by PRD M09.
   It excludes the viewer and limits results to 1–100 IDs.
 
 The future discovery module must use this guard/query rather than unfiltered
@@ -225,3 +227,11 @@ and freezes continue to restrict protected endpoints.
 Revocation and processing mutations lock the same account row. Re-acceptance
 restores processing eligibility without overwriting consent history. This does not
 revoke already-issued Supabase capabilities; their provider expiry still applies.
+
+## Auth configuration verification
+
+For ONB-BE-01, run `go run ./cmd/auth-check` from this directory with
+`SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` exported. It reads public Auth flags
+without creating users or updating settings. See
+[Auth readiness](../../infrastructure/supabase/auth-readiness.md) for its limits,
+known public identifiers, and pending provider/SMTP/deep-link verification.
