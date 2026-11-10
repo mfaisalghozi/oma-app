@@ -161,6 +161,132 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/profile-data:
+    get:
+      operationId: listProfileMasterData
+      security:
+        - supabaseJWT: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - gender
+              - pronoun
+              - show_me
+              - looking_for
+              - university
+              - religion
+              - personality
+              - hobby_category
+              - hobby
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: category_id
+          in: query
+          description: Only supported for hobby
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Active records with stable pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - type
+                      - items
+                      - pagination
+                    properties:
+                      type:
+                        type: string
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required:
+                            - id
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            code:
+                              type: string
+                            label:
+                              type: string
+                            name:
+                              type: string
+                            country_code:
+                              type: string
+                            category_id:
+                              type: string
+                              format: uuid
+                      pagination:
+                        type: object
+                        required:
+                          - page
+                          - limit
+                          - total
+                          - total_pages
+                        properties:
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+                          total:
+                            type: integer
+                          total_pages:
+                            type: integer
+        "400":
+          description: INVALID_MASTER_DATA_TYPE or INVALID_QUERY_PARAMETERS
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: UNAUTHORIZED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Account missing or restricted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Master data unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:

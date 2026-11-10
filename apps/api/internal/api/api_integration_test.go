@@ -222,3 +222,43 @@ func TestConsentVersionChangeAndLatestDecision(t *testing.T) {
 	}
 	call(t, h, "POST", "/v1/me/initialize", "alice", "", 500)
 }
+
+func TestMasterDataTypesSearchPaginationAndValidation(t *testing.T) {
+	db, h := setup(t)
+	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	for _, kind := range []string{"gender", "pronoun", "show_me", "looking_for", "university", "religion", "personality", "hobby_category", "hobby"} {
+		got := call(t, h, "GET", "/v1/profile-data?type="+kind, "alice", "", 200)["data"].(map[string]any)
+		if got["type"] != kind || got["items"] == nil {
+			t.Fatalf("invalid %s result: %#v", kind, got)
+		}
+	}
+	_, err := db.Exec(`INSERT INTO universities(id,name,country_code) VALUES('33333333-3333-4333-8333-333333333333','Alpha Indonesia','ID'),('44444444-4444-4444-8444-444444444444','Beta Indonesia','ID'); INSERT INTO universities(name,country_code,is_active) VALUES('Hidden Indonesia','ID',false)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := call(t, h, "GET", "/v1/profile-data?type=university&q=Indonesia&page=2&limit=1", "alice", "", 200)["data"].(map[string]any)
+	if len(got["items"].([]any)) != 1 || got["pagination"].(map[string]any)["total"] != float64(2) {
+		t.Fatalf("bad pagination: %#v", got)
+	}
+	got = call(t, h, "GET", "/v1/profile-data?type=university&q=Indonesia&page=99&limit=1", "alice", "", 200)["data"].(map[string]any)
+	if len(got["items"].([]any)) != 0 || got["pagination"].(map[string]any)["total"] != float64(2) {
+		t.Fatalf("out-of-range totals lost: %#v", got)
+	}
+	for _, q := range []string{"type=accounts", "type=gender&page=0", "type=gender&limit=101", "type=gender&category_id=" + alice, "type=hobby&category_id=not-a-uuid"} {
+		call(t, h, "GET", "/v1/profile-data?"+q, "alice", "", 400)
+	}
+}
+
+func TestHobbyCategoryFilterExcludesInactiveRecords(t *testing.T) {
+	db, h := setup(t)
+	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	_, err := db.Exec(`INSERT INTO hobby_categories(id,code,label) VALUES('33333333-3333-4333-8333-333333333333','test_outdoors','Test outdoors'),('44444444-4444-4444-8444-444444444444','test_music','Test music'); INSERT INTO hobbies(category_id,code,label,is_active) VALUES('33333333-3333-4333-8333-333333333333','test_hiking','Test Hiking',true),('33333333-3333-4333-8333-333333333333','test_hidden','Test Hidden',false),('44444444-4444-4444-8444-444444444444','test_guitar','Test Guitar',true)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := call(t, h, "GET", "/v1/profile-data?type=hobby&category_id=33333333-3333-4333-8333-333333333333&q=Hiking", "alice", "", 200)["data"].(map[string]any)
+	items := got["items"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["code"] != "test_hiking" {
+		t.Fatalf("wrong category filter: %#v", got)
+	}
+}

@@ -1,0 +1,9 @@
+DROP TABLE hobbies;
+DROP TABLE universities;
+DROP TABLE hobby_categories;
+DROP TABLE personality_types;
+DROP TABLE religions;
+DROP TABLE looking_for_options;
+DROP TABLE show_me_options;
+DROP TABLE pronoun_options;
+DROP TABLE gender_options;

@@ -76,3 +76,23 @@ only, resolves versions on the backend, and records server timestamps. Re-accept
 appends history; a rejection or newer required document version requires consent
 again. Consent history cannot be updated or deleted through ordinary SQL operations.
 Consent revocation and its processing policy are tracked separately in ONB-BE-12.
+
+## Master data
+
+`GET /v1/profile-data?type=...` supports `gender`, `pronoun`, `show_me`,
+`looking_for`, `university`, `religion`, `personality`, `hobby_category`, and `hobby`.
+It requires an initialized active account. Search is a case-insensitive literal
+substring. Pagination defaults to page 1 and limit 20, with a maximum limit of 100.
+`category_id` is accepted only for hobbies. Inactive records are excluded.
+
+Migration 003 seeds documented gender/show-me values, the initial He/Him pronoun,
+and MBTI codes (INFJ uses the documented Advocate label). Migration 009 seeds
+Outdoor, Indoor, and Gaming from PRD M08.
+
+On 2026-11-09, the user approved the initial pronoun, looking-for, religion,
+university and hobby catalogs. The approved explicit seed was applied to the OMA
+Supabase database in one transaction and verified after commit. See
+[approved catalog and application receipt](catalogs/README.md) for exact values,
+counts and maintenance rules. Schema migrations do not apply this separate seed
+script automatically. The university set is intentionally limited to the three
+approved initial entries.
