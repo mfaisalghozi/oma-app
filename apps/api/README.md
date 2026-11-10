@@ -125,3 +125,25 @@ reservation/orphan cleanup remains an operational follow-up.
 NSFW moderation remains on the mobile client for MVP, as confirmed by the user.
 Storage adapter tests use a local HTTP fixture; bucket policies and direct uploads
 must still be verified against the staging Supabase project.
+
+## Final onboarding
+
+`POST /v1/me/onboarding` accepts the complete form defined in the shared OpenAPI
+contract. It requires an active initialized account and current required consents.
+There is no server-side step progress. The backend validates calendar age 18+,
+field lengths/ranges, active master-data references, unique photo IDs/positions,
+and uploaded object metadata before committing the profile. Location is optional;
+location-based discovery must exclude profiles without one.
+
+The account row is locked for the submission. Profile relationships, PostGIS
+location, selected photo activation and `onboarding_completed_at` commit together.
+A retry after a successful response was lost returns 409
+`ONBOARDING_ALREADY_COMPLETED`; it does not create duplicate records. Storage
+uploads are external to the database transaction and remain available for a retry
+if database persistence fails. Device registration uses its separate endpoint.
+
+Validation failures return 422 `ONBOARDING_VALIDATION_FAILED` with all invalid
+fields. Malformed JSON, unknown properties or incompatible JSON value types return
+400 `INVALID_REQUEST`. Missing uploaded objects return 422
+`PHOTO_UPLOAD_INCOMPLETE`; Storage outages return 503 and do not complete onboarding.
+Birthdates and exact coordinates are never logged or returned in public responses.

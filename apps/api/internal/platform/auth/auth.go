@@ -37,7 +37,7 @@ func Middleware(v Verifier, next http.Handler) http.Handler {
 			httpapi.Fail(w, 401, "UNAUTHORIZED")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, id)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, strings.ToLower(id))))
 	})
 }
 

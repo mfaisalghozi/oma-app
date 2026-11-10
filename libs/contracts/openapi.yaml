@@ -636,6 +636,89 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/me/onboarding:
+    post:
+      operationId: submitOnboarding
+      summary: Atomically persist the complete onboarding form
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingInput"
+      responses:
+        "201":
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - user_id
+                      - onboarding_completed
+                      - onboarding_completed_at
+                    properties:
+                      user_id: &a5
+                        type: string
+                        format: uuid
+                      onboarding_completed:
+                        type: boolean
+                        enum:
+                          - true
+                      onboarding_completed_at:
+                        type: string
+                        format: date-time
+                    additionalProperties: false
+        "400":
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: CONSENT_REQUIRED or restricted/uninitialized account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "409":
+          description: ONBOARDING_ALREADY_COMPLETED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: ONBOARDING_VALIDATION_FAILED with all invalid fields, or
+            PHOTO_UPLOAD_INCOMPLETE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: STORAGE_UNAVAILABLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:
@@ -862,4 +945,116 @@ components:
           maximum: 6
         is_primary:
           type: boolean
+      additionalProperties: false
+    ProfileInput:
+      type: object
+      required:
+        - full_name
+        - birthdate
+        - gender_id
+        - show_me_option_id
+        - bio
+        - height_cm
+        - weight_kg
+      properties:
+        full_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        birthdate:
+          type: string
+          format: date
+        gender_id: *a5
+        pronoun_id: &a6
+          type: string
+          format: uuid
+          nullable: true
+        show_me_option_id: *a5
+        bio:
+          type: string
+          minLength: 1
+          maxLength: 255
+        height_cm:
+          type: integer
+          minimum: 100
+          maximum: 250
+        weight_kg:
+          type: integer
+          minimum: 25
+          maximum: 300
+        university_id: *a6
+        ambition:
+          type: string
+          maxLength: 500
+          nullable: true
+        religion_id: *a6
+        personality_type_id: *a6
+      additionalProperties: false
+    Coordinates:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      additionalProperties: false
+    OnboardingInput:
+      type: object
+      required:
+        - profile
+        - looking_for_ids
+        - hobby_ids
+        - photos
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProfileInput"
+        looking_for_ids:
+          type: array
+          items: *a5
+          minItems: 1
+          uniqueItems: true
+        hobby_ids:
+          type: array
+          items: *a5
+          minItems: 1
+          uniqueItems: true
+        photos:
+          type: array
+          items:
+            type: object
+            required:
+              - photo_id
+              - position
+            properties:
+              photo_id: *a5
+              position:
+                type: integer
+                minimum: 1
+                maximum: 6
+            additionalProperties: false
+          minItems: 1
+          maxItems: 6
+        location:
+          type: object
+          nullable: true
+          required:
+            - latitude
+            - longitude
+          additionalProperties: false
+          properties:
+            latitude:
+              type: number
+              minimum: -90
+              maximum: 90
+            longitude:
+              type: number
+              minimum: -180
+              maximum: 180
       additionalProperties: false

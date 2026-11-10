@@ -23,10 +23,12 @@ func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) htt
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) { httpapi.Write(w, 200, map[string]string{"status": "ok"}) })
 	photos := &media.Handler{DB: db, Store: store}
+	profiles := &profile.Handler{DB: db, Store: store}
 	consents := &profile.Consents{DB: db}
 	accounts := &account.Handler{DB: db, Consents: consents.Required}
 	mux.Handle("POST /v1/me/initialize", auth.Middleware(verifier, http.HandlerFunc(accounts.Initialize)))
 	guard := func(h http.HandlerFunc) http.Handler { return auth.Middleware(verifier, accounts.Active(h)) }
+	mux.Handle("POST /v1/me/onboarding", guard(profiles.Onboarding))
 	mux.Handle("POST /v1/photos/upload-urls", guard(photos.Reserve))
 	mux.Handle("POST /v1/photos/{id}/upload-url", guard(photos.Refresh))
 	mux.Handle("GET /v1/photos", guard(photos.Read))
