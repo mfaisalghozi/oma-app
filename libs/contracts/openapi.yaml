@@ -287,6 +287,355 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/photos/upload-urls:
+    post:
+      operationId: reservePhotoUploads
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoReservation"
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PhotoUpload"
+        "400":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+  /v1/photos/{id}/upload-url:
+    post:
+      operationId: refreshPhotoUpload
+      security:
+        - supabaseJWT: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: &a1
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PhotoUpload"
+        "400":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+  /v1/photos:
+    get:
+      operationId: listOwnPhotos
+      security:
+        - supabaseJWT: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Photo"
+        "400":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+  /v1/photos/{id}:
+    patch:
+      operationId: updatePhoto
+      security:
+        - supabaseJWT: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoPatch"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - photo_id
+                      - position
+                      - is_primary
+                      - status
+                    properties:
+                      photo_id: *a1
+                      position:
+                        type: integer
+                      is_primary:
+                        type: boolean
+                      status: &a4
+                        type: string
+                    additionalProperties: false
+        "400":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+    delete:
+      operationId: deletePhoto
+      security:
+        - supabaseJWT: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a1
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - photo_id
+                      - deleted
+                    properties:
+                      photo_id: *a1
+                      deleted:
+                        type: boolean
+                    additionalProperties: false
+        "400":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: Request rejected or dependency unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:
@@ -366,16 +715,16 @@ components:
         - document_url
         - required
       properties:
-        type: &a2
+        type: &a3
           type: string
           enum:
             - terms
             - privacy
             - sensitive_data
-        title: &a1
+        title: &a2
           type: string
-        version: *a1
-        document_url: *a1
+        version: *a2
+        document_url: *a2
         required:
           type: boolean
       additionalProperties: false
@@ -387,8 +736,8 @@ components:
         - decision
         - accepted_at
       properties:
-        type: *a2
-        version: *a1
+        type: *a3
+        version: *a2
         decision:
           type: string
           enum:
@@ -412,7 +761,7 @@ components:
               - type
               - accepted
             properties:
-              type: *a2
+              type: *a3
               accepted:
                 type: boolean
             additionalProperties: false
@@ -430,5 +779,87 @@ components:
           items:
             $ref: "#/components/schemas/ConsentDecision"
         required_consents_completed:
+          type: boolean
+      additionalProperties: false
+    PhotoUpload:
+      type: object
+      required:
+        - photo_id
+        - bucket
+        - path
+        - upload_token
+        - expires_at
+      properties:
+        photo_id: *a1
+        bucket: *a4
+        path: *a4
+        upload_token: *a4
+        expires_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    Photo:
+      type: object
+      required:
+        - id
+        - storage_path
+        - position
+        - is_primary
+        - status
+        - signed_url
+      properties:
+        id: *a1
+        storage_path: *a4
+        position:
+          type: integer
+          nullable: true
+        is_primary:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - pending_upload
+            - active
+        signed_url:
+          type: string
+          nullable: true
+      additionalProperties: false
+    PhotoReservation:
+      type: object
+      required:
+        - photos
+      properties:
+        photos:
+          type: array
+          items:
+            type: object
+            required:
+              - content_type
+              - file_size
+            properties:
+              filename: *a4
+              content_type:
+                type: string
+                enum:
+                  - image/jpeg
+                  - image/png
+                  - image/webp
+              file_size:
+                type: integer
+                minimum: 1
+                maximum: 10485760
+            additionalProperties: false
+          minItems: 1
+          maxItems: 6
+      additionalProperties: false
+    PhotoPatch:
+      type: object
+      required: []
+      properties:
+        position:
+          type: integer
+          minimum: 1
+          maximum: 6
+        is_primary:
           type: boolean
       additionalProperties: false

@@ -96,3 +96,32 @@ Supabase database in one transaction and verified after commit. See
 counts and maintenance rules. Schema migrations do not apply this separate seed
 script automatically. The university set is intentionally limited to the three
 approved initial entries.
+
+
+## Photo storage
+
+Apply the reviewed `infrastructure/supabase/profile-storage.sql` to your selected
+Supabase project. Set the server-only `SUPABASE_SERVICE_ROLE_KEY`. Startup verifies
+that `profile-photos` is private with image MIME restrictions and a 10 MiB limit.
+Review existing Storage policies: clients must not have unrestricted writes or
+upserts that bypass backend-generated upload paths.
+
+Photos are reserved under `JWT-sub/photo-UUID.ext`. The request filename is never
+used as a path. Account-row locking serializes reservations and enforces the six
+active/reserved photo limit, including concurrent requests. Signing failures roll
+back the reservations. Capabilities are returned to the caller, never persisted or
+logged. Pending photos can refresh their upload capability without reserving a new
+slot. Active photo positions are unique; primary-photo changes and swaps are atomic.
+
+Supabase's [signed upload capabilities](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl)
+last two hours; `expires_at` is read from the provider's returned capability. Read
+URLs expire after five minutes. The backend never claims it can revoke an issued
+capability early. A deleted reservation remains tombstoned, so an old upload token
+cannot reactivate or expose it. Object deletion is retried by repeating DELETE if
+Storage returns 503; database metadata is already hidden. A previously issued
+upload capability may recreate that tombstoned object until it expires. Expired
+reservation/orphan cleanup remains an operational follow-up.
+
+NSFW moderation remains on the mobile client for MVP, as confirmed by the user.
+Storage adapter tests use a local HTTP fixture; bucket policies and direct uploads
+must still be verified against the staging Supabase project.
