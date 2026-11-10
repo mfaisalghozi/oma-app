@@ -147,3 +147,12 @@ fields. Malformed JSON, unknown properties or incompatible JSON value types retu
 400 `INVALID_REQUEST`. Missing uploaded objects return 422
 `PHOTO_UPLOAD_INCOMPLETE`; Storage outages return 503 and do not complete onboarding.
 Birthdates and exact coordinates are never logged or returned in public responses.
+
+## Device tokens
+
+`POST /v1/devices` upserts a push token for an initialized active account.
+`platform` accepts `ios`/`android`; `provider` accepts `fcm`/`apns`. A token is unique
+across accounts. Registering the same installation after switching accounts moves
+that token to the new authenticated owner while preserving its device ID. The old
+owner can no longer delete it. `DELETE /v1/devices/{id}` only removes a device
+currently owned by the caller. Device tokens are never logged or returned.

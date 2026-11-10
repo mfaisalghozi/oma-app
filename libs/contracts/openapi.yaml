@@ -520,7 +520,7 @@ paths:
                         type: integer
                       is_primary:
                         type: boolean
-                      status: &a4
+                      status: &a11
                         type: string
                     additionalProperties: false
         "400":
@@ -665,7 +665,7 @@ paths:
                       - onboarding_completed
                       - onboarding_completed_at
                     properties:
-                      user_id: &a5
+                      user_id: &a12
                         type: string
                         format: uuid
                       onboarding_completed:
@@ -719,6 +719,137 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/devices:
+    post:
+      operationId: registerDevice
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - platform
+                - provider
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                  maxLength: 8192
+                platform:
+                  type: string
+                  enum:
+                    - ios
+                    - android
+                provider:
+                  type: string
+                  enum:
+                    - fcm
+                    - apns
+              additionalProperties: false
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - device_id
+                      - registered
+                    properties:
+                      device_id: &a2
+                        type: string
+                        format: uuid
+                      registered:
+                        type: boolean
+                    additionalProperties: false
+        "400": &a3
+          description: Invalid input, missing device, restricted account, or persistence
+            failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401": &a4
+          description: Invalid input, missing device, restricted account, or persistence
+            failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403": &a5
+          description: Invalid input, missing device, restricted account, or persistence
+            failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404": &a6
+          description: Invalid input, missing device, restricted account, or persistence
+            failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422": &a7
+          description: Invalid input, missing device, restricted account, or persistence
+            failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500": &a8
+          description: Invalid input, missing device, restricted account, or persistence
+            failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+  /v1/devices/{id}:
+    delete:
+      operationId: deleteOwnDevice
+      security:
+        - supabaseJWT: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: *a2
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - device_id
+                      - deleted
+                    properties:
+                      device_id: *a2
+                      deleted:
+                        type: boolean
+                    additionalProperties: false
+        "400": *a3
+        "401": *a4
+        "403": *a5
+        "404": *a6
+        "422": *a7
+        "500": *a8
 components:
   securitySchemes:
     supabaseJWT:
@@ -798,16 +929,16 @@ components:
         - document_url
         - required
       properties:
-        type: &a3
+        type: &a10
           type: string
           enum:
             - terms
             - privacy
             - sensitive_data
-        title: &a2
+        title: &a9
           type: string
-        version: *a2
-        document_url: *a2
+        version: *a9
+        document_url: *a9
         required:
           type: boolean
       additionalProperties: false
@@ -819,8 +950,8 @@ components:
         - decision
         - accepted_at
       properties:
-        type: *a3
-        version: *a2
+        type: *a10
+        version: *a9
         decision:
           type: string
           enum:
@@ -844,7 +975,7 @@ components:
               - type
               - accepted
             properties:
-              type: *a3
+              type: *a10
               accepted:
                 type: boolean
             additionalProperties: false
@@ -874,9 +1005,9 @@ components:
         - expires_at
       properties:
         photo_id: *a1
-        bucket: *a4
-        path: *a4
-        upload_token: *a4
+        bucket: *a11
+        path: *a11
+        upload_token: *a11
         expires_at:
           type: string
           format: date-time
@@ -892,7 +1023,7 @@ components:
         - signed_url
       properties:
         id: *a1
-        storage_path: *a4
+        storage_path: *a11
         position:
           type: integer
           nullable: true
@@ -920,7 +1051,7 @@ components:
               - content_type
               - file_size
             properties:
-              filename: *a4
+              filename: *a11
               content_type:
                 type: string
                 enum:
@@ -964,12 +1095,12 @@ components:
         birthdate:
           type: string
           format: date
-        gender_id: *a5
-        pronoun_id: &a6
+        gender_id: *a12
+        pronoun_id: &a13
           type: string
           format: uuid
           nullable: true
-        show_me_option_id: *a5
+        show_me_option_id: *a12
         bio:
           type: string
           minLength: 1
@@ -982,13 +1113,13 @@ components:
           type: integer
           minimum: 25
           maximum: 300
-        university_id: *a6
+        university_id: *a13
         ambition:
           type: string
           maxLength: 500
           nullable: true
-        religion_id: *a6
-        personality_type_id: *a6
+        religion_id: *a13
+        personality_type_id: *a13
       additionalProperties: false
     Coordinates:
       type: object
@@ -1017,12 +1148,12 @@ components:
           $ref: "#/components/schemas/ProfileInput"
         looking_for_ids:
           type: array
-          items: *a5
+          items: *a12
           minItems: 1
           uniqueItems: true
         hobby_ids:
           type: array
-          items: *a5
+          items: *a12
           minItems: 1
           uniqueItems: true
         photos:
@@ -1033,7 +1164,7 @@ components:
               - photo_id
               - position
             properties:
-              photo_id: *a5
+              photo_id: *a12
               position:
                 type: integer
                 minimum: 1
