@@ -191,3 +191,16 @@ transaction, and validation errors return 422 `INVALID_PROFILE_DATA` with field
 details. Birthdate, name, gender, photos and location are not editable through this
 endpoint. Birthdate verification remains a separate future flow; photos/location
 have separate endpoints. The response includes the new `updated_at` timestamp.
+
+## Location updates
+
+`PUT /v1/me/location` validates latitude [-90, 90] and longitude [-180, 180], then
+upserts a WGS84 PostGIS geography point (longitude first). Missing, non-numeric,
+overflowing, or out-of-range coordinates return 422 `INVALID_COORDINATES`. It requires an active
+completed account and current required consent. The response contains only an
+update flag and timestamp. `DELETE /v1/me/location` is idempotent and remains
+available without consent; it removes only the authenticated user's row.
+
+No exact coordinates are logged or returned by these endpoints. After deletion,
+the discovery eligibility guard returns `LOCATION_REQUIRED` and candidate queries
+exclude that account until it stores a valid location again.

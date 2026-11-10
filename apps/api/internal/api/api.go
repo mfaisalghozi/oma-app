@@ -32,6 +32,8 @@ func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) htt
 	mux.Handle("DELETE /v1/devices/{id}", guard(accounts.DeleteDevice))
 	mux.Handle("GET /v1/me/profile", guard(profiles.Read))
 	mux.Handle("PATCH /v1/me/profile", guard(profiles.Patch))
+	mux.Handle("PUT /v1/me/location", guard(profiles.PutLocation))
+	mux.Handle("DELETE /v1/me/location", guard(profiles.DeleteLocation))
 	mux.Handle("POST /v1/me/onboarding", guard(profiles.Onboarding))
 	mux.Handle("POST /v1/photos/upload-urls", guard(photos.Reserve))
 	mux.Handle("POST /v1/photos/{id}/upload-url", guard(photos.Refresh))

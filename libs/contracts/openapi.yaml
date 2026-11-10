@@ -520,7 +520,7 @@ paths:
                         type: integer
                       is_primary:
                         type: boolean
-                      status: &a11
+                      status: &a16
                         type: string
                     additionalProperties: false
         "400":
@@ -665,7 +665,7 @@ paths:
                       - onboarding_completed
                       - onboarding_completed_at
                     properties:
-                      user_id: &a12
+                      user_id: &a17
                         type: string
                         format: uuid
                       onboarding_completed:
@@ -964,6 +964,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/me/location:
+    put:
+      operationId: updateOwnLocation
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Coordinates"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - updated
+                      - updated_at
+                    properties:
+                      updated:
+                        type: boolean
+                      updated_at:
+                        type: string
+                        format: date-time
+        "400": &a9
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401": &a10
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403": &a11
+          description: Active completed account and current consent required for PUT;
+            DELETE remains available without consent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422": &a12
+          description: INVALID_COORDINATES
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500": &a13
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+    delete:
+      operationId: deleteOwnLocation
+      security:
+        - supabaseJWT: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - deleted
+                    properties:
+                      deleted:
+                        type: boolean
+        "400": *a9
+        "401": *a10
+        "403": *a11
+        "422": *a12
+        "500": *a13
 components:
   securitySchemes:
     supabaseJWT:
@@ -1043,16 +1132,16 @@ components:
         - document_url
         - required
       properties:
-        type: &a10
+        type: &a15
           type: string
           enum:
             - terms
             - privacy
             - sensitive_data
-        title: &a9
+        title: &a14
           type: string
-        version: *a9
-        document_url: *a9
+        version: *a14
+        document_url: *a14
         required:
           type: boolean
       additionalProperties: false
@@ -1064,8 +1153,8 @@ components:
         - decision
         - accepted_at
       properties:
-        type: *a10
-        version: *a9
+        type: *a15
+        version: *a14
         decision:
           type: string
           enum:
@@ -1089,7 +1178,7 @@ components:
               - type
               - accepted
             properties:
-              type: *a10
+              type: *a15
               accepted:
                 type: boolean
             additionalProperties: false
@@ -1119,9 +1208,9 @@ components:
         - expires_at
       properties:
         photo_id: *a1
-        bucket: *a11
-        path: *a11
-        upload_token: *a11
+        bucket: *a16
+        path: *a16
+        upload_token: *a16
         expires_at:
           type: string
           format: date-time
@@ -1137,7 +1226,7 @@ components:
         - signed_url
       properties:
         id: *a1
-        storage_path: *a11
+        storage_path: *a16
         position:
           type: integer
           nullable: true
@@ -1165,7 +1254,7 @@ components:
               - content_type
               - file_size
             properties:
-              filename: *a11
+              filename: *a16
               content_type:
                 type: string
                 enum:
@@ -1209,31 +1298,31 @@ components:
         birthdate:
           type: string
           format: date
-        gender_id: *a12
-        pronoun_id: &a13
+        gender_id: *a17
+        pronoun_id: &a18
           type: string
           format: uuid
           nullable: true
-        show_me_option_id: *a12
-        bio: &a17
+        show_me_option_id: *a17
+        bio: &a22
           type: string
           minLength: 1
           maxLength: 255
-        height_cm: &a18
+        height_cm: &a23
           type: integer
           minimum: 100
           maximum: 250
-        weight_kg: &a19
+        weight_kg: &a24
           type: integer
           minimum: 25
           maximum: 300
-        university_id: *a13
-        ambition: &a20
+        university_id: *a18
+        ambition: &a25
           type: string
           maxLength: 500
           nullable: true
-        religion_id: *a13
-        personality_type_id: *a13
+        religion_id: *a18
+        personality_type_id: *a18
       additionalProperties: false
     Coordinates:
       type: object
@@ -1260,14 +1349,14 @@ components:
       properties:
         profile:
           $ref: "#/components/schemas/ProfileInput"
-        looking_for_ids: &a21
+        looking_for_ids: &a26
           type: array
-          items: *a12
+          items: *a17
           minItems: 1
           uniqueItems: true
-        hobby_ids: &a22
+        hobby_ids: &a27
           type: array
-          items: *a12
+          items: *a17
           minItems: 1
           uniqueItems: true
         photos:
@@ -1278,7 +1367,7 @@ components:
               - photo_id
               - position
             properties:
-              photo_id: *a12
+              photo_id: *a17
               position:
                 type: integer
                 minimum: 1
@@ -1320,29 +1409,29 @@ components:
         - created_at
         - updated_at
       properties:
-        user_id: &a14
+        user_id: &a19
           type: string
           format: uuid
-        full_name: &a15
+        full_name: &a20
           type: string
         birthdate:
           type: string
           format: date
           description: Returned only to the authenticated profile owner
-        gender: &a16
+        gender: &a21
           type: object
           required:
             - id
             - code
             - label
           properties:
-            id: *a14
-            code: *a15
-            label: *a15
+            id: *a19
+            code: *a20
+            label: *a20
           nullable: true
-        pronoun: *a16
-        show_me: *a16
-        bio: *a15
+        pronoun: *a21
+        show_me: *a21
+        bio: *a20
         height_cm:
           type: integer
         weight_kg:
@@ -1351,26 +1440,26 @@ components:
           type: object
           nullable: true
           properties:
-            id: *a14
-            name: *a15
-            country_code: *a15
+            id: *a19
+            name: *a20
+            country_code: *a20
         ambition:
           type: string
           nullable: true
-        religion: *a16
-        personality: *a16
+        religion: *a21
+        personality: *a21
         looking_for:
           type: array
-          items: *a16
+          items: *a21
         hobbies:
           type: array
           items:
             type: object
             properties:
-              id: *a14
-              code: *a15
-              label: *a15
-              category_id: *a14
+              id: *a19
+              code: *a20
+              label: *a20
+              category_id: *a19
         photos:
           type: array
           items:
@@ -1386,14 +1475,14 @@ components:
       minProperties: 1
       additionalProperties: false
       properties:
-        bio: *a17
-        height_cm: *a18
-        weight_kg: *a19
-        ambition: *a20
-        university_id: *a13
-        religion_id: *a13
-        personality_type_id: *a13
-        pronoun_id: *a13
-        show_me_option_id: *a12
-        looking_for_ids: *a21
-        hobby_ids: *a22
+        bio: *a22
+        height_cm: *a23
+        weight_kg: *a24
+        ambition: *a25
+        university_id: *a18
+        religion_id: *a18
+        personality_type_id: *a18
+        pronoun_id: *a18
+        show_me_option_id: *a17
+        looking_for_ids: *a26
+        hobby_ids: *a27
