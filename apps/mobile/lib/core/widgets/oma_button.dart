@@ -8,6 +8,7 @@ class OmaButton extends StatelessWidget {
   const OmaButton({
     required this.label,
     required this.onPressed,
+    this.onDisabledTap,
     this.variant = OmaButtonVariant.primary,
     this.icon,
     this.loading = false,
@@ -18,6 +19,7 @@ class OmaButton extends StatelessWidget {
   const OmaButton.secondary({
     required this.label,
     required this.onPressed,
+    this.onDisabledTap,
     this.icon,
     this.loading = false,
     this.expand = true,
@@ -27,6 +29,7 @@ class OmaButton extends StatelessWidget {
   const OmaButton.text({
     required this.label,
     required this.onPressed,
+    this.onDisabledTap,
     this.icon,
     this.loading = false,
     this.expand = true,
@@ -36,6 +39,9 @@ class OmaButton extends StatelessWidget {
   final String label;
 
   final VoidCallback? onPressed;
+
+  /// Fires on a tap while the button is disabled. Lets a blocked form say why.
+  final VoidCallback? onDisabledTap;
   final OmaButtonVariant variant;
   final Widget? icon;
   final bool loading;
@@ -76,6 +82,24 @@ class OmaButton extends StatelessWidget {
             ],
           );
 
+    final button = TextButton(
+      onPressed: enabled ? onPressed : null,
+      style: TextButton.styleFrom(
+        backgroundColor: bg,
+        foregroundColor: fg,
+        disabledBackgroundColor: bg,
+        disabledForegroundColor: fg,
+        shape: StadiumBorder(side: side),
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        textStyle: const TextStyle(
+          fontFamily: 'Nunito',
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      child: child,
+    );
+
     return Semantics(
       button: true,
       enabled: enabled,
@@ -83,23 +107,13 @@ class OmaButton extends StatelessWidget {
       child: SizedBox(
         width: expand ? double.infinity : null,
         height: 52,
-        child: TextButton(
-          onPressed: enabled ? onPressed : null,
-          style: TextButton.styleFrom(
-            backgroundColor: bg,
-            foregroundColor: fg,
-            disabledBackgroundColor: bg,
-            disabledForegroundColor: fg,
-            shape: StadiumBorder(side: side),
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            textStyle: const TextStyle(
-              fontFamily: 'Nunito',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          child: child,
-        ),
+        child: !enabled && onDisabledTap != null
+            ? GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onDisabledTap,
+                child: button,
+              )
+            : button,
       ),
     );
   }

@@ -18,6 +18,7 @@ class StepFrame extends ConsumerWidget {
     this.subtitle,
     this.nextLabel = 'Next',
     this.onNext,
+    this.onBlocked,
     this.footer,
     super.key,
   });
@@ -30,6 +31,9 @@ class StepFrame extends ConsumerWidget {
   final String nextLabel;
 
   final Future<void> Function()? onNext;
+
+  /// Runs when the disabled Next is tapped, so the step can reveal what is missing.
+  final VoidCallback? onBlocked;
 
   final Widget? footer;
 
@@ -60,6 +64,7 @@ class StepFrame extends ConsumerWidget {
         children: [
           OmaButton(
             label: nextLabel,
+            onDisabledTap: onBlocked,
             onPressed: canContinue
                 ? () async {
                     if (onNext != null) return onNext!();

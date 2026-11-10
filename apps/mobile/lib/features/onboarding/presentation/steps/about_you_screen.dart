@@ -50,9 +50,25 @@ class _AboutFormState extends ConsumerState<_AboutForm> {
   OnboardingDraftController get _draft =>
       ref.read(onboardingDraftProvider.notifier);
 
-  static String? _rangeError(String text, int min, int max, String unit) {
+  /// A red field on first paint reads as an accusation. Wait for a touch.
+  bool _heightTouched = false;
+  bool _weightTouched = false;
+
+  void _revealRequirement() => setState(() {
+    _heightTouched = true;
+    _weightTouched = true;
+  });
+
+  static String? _numberError(
+    String text, {
+    required bool touched,
+    required int min,
+    required int max,
+    required String unit,
+  }) {
+    if (text.isEmpty) return touched ? 'Required.' : null;
     final v = int.tryParse(text);
-    if (text.isEmpty || (v != null && v >= min && v <= max)) return null;
+    if (v != null && v >= min && v <= max) return null;
     return 'Between $min and $max $unit.';
   }
 
@@ -65,6 +81,7 @@ class _AboutFormState extends ConsumerState<_AboutForm> {
       step: OnboardingStep.about,
       title: 'About you',
       canContinue: draft.aboutDone,
+      onBlocked: _revealRequirement,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -99,9 +116,15 @@ class _AboutFormState extends ConsumerState<_AboutForm> {
                   inputFormatters: digits,
                   maxLength: 3,
                   suffix: const _Unit('cm'),
-                  errorText: _rangeError(_height.text, 100, 250, 'cm'),
+                  errorText: _numberError(
+                    _height.text,
+                    touched: _heightTouched,
+                    min: 100,
+                    max: 250,
+                    unit: 'cm',
+                  ),
                   onChanged: (v) {
-                    setState(() {});
+                    setState(() => _heightTouched = true);
                     _draft.editTyping(
                       (d) => d.copyWith(heightCm: Nullable(int.tryParse(v))),
                     );
@@ -117,9 +140,15 @@ class _AboutFormState extends ConsumerState<_AboutForm> {
                   inputFormatters: digits,
                   maxLength: 3,
                   suffix: const _Unit('kg'),
-                  errorText: _rangeError(_weight.text, 25, 300, 'kg'),
+                  errorText: _numberError(
+                    _weight.text,
+                    touched: _weightTouched,
+                    min: 25,
+                    max: 300,
+                    unit: 'kg',
+                  ),
                   onChanged: (v) {
-                    setState(() {});
+                    setState(() => _weightTouched = true);
                     _draft.editTyping(
                       (d) => d.copyWith(weightKg: Nullable(int.tryParse(v))),
                     );
