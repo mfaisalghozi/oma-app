@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"regexp"
@@ -49,3 +50,12 @@ func Decode(w http.ResponseWriter, r *http.Request, v any) bool {
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 func ValidID(id string) bool { return uuidPattern.MatchString(id) }
+
+func HandleError(w http.ResponseWriter, err error) {
+	var e *Error
+	if errors.As(err, &e) {
+		Fail(w, e.Status, e.Code)
+		return
+	}
+	Fail(w, 500, "INTERNAL_SERVER_ERROR")
+}

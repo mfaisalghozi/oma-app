@@ -83,18 +83,37 @@ func (h *Handler) Active(next http.Handler) http.Handler {
 			httpapi.Fail(w, 500, "INTERNAL_SERVER_ERROR")
 			return
 		}
-		switch s.Status {
-		case "frozen":
-			httpapi.Fail(w, 403, "ACCOUNT_FROZEN")
-			return
-		case "suspended":
-			httpapi.Fail(w, 403, "ACCOUNT_SUSPENDED")
-			return
-		case "active":
-		default:
-			httpapi.Fail(w, 403, "ACCOUNT_RESTRICTED")
+		if err := statusError(s.Status); err != nil {
+			httpapi.HandleError(w, err)
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
+}
+
+// LockActive serializes account-owned mutations and checks status inside the transaction.
+func LockActive(ctx context.Context, tx *sql.Tx, id string) error {
+	var status string
+	err := tx.QueryRowContext(ctx, `SELECT status FROM accounts WHERE user_id=$1 FOR UPDATE`, id).Scan(&status)
+	if err == sql.ErrNoRows {
+		return &httpapi.Error{Status: 403, Code: "ACCOUNT_NOT_INITIALIZED"}
+	}
+	if err != nil {
+		return err
+	}
+	return statusError(status)
+}
+
+func statusError(status string) error {
+	switch status {
+	case "active":
+		return nil
+	case "frozen":
+		return &httpapi.Error{Status: 403, Code: "ACCOUNT_FROZEN"}
+	case "suspended":
+		return &httpapi.Error{Status: 403, Code: "ACCOUNT_SUSPENDED"}
+	default:
+		return &httpapi.Error{Status: 403, Code: "ACCOUNT_RESTRICTED"}
+	}
 }

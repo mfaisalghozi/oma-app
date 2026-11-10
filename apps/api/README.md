@@ -60,3 +60,19 @@ to staging or production. Integration tests require this variable and fail rathe
 than silently skip when it is missing. The integration target is never cached.
 
 
+
+## Legal document registry
+
+An operator must insert approved legal documents into `consent_documents` before
+onboarding is enabled. Supported types are `terms`, `privacy`, and `sensitive_data`,
+following the technical specification. Each row contains its type, version, title,
+legal-document URL, `required`, and `active` flags. There may be only one active
+version per type. Update active flags in a transaction when publishing new versions.
+Legal documents themselves are hosted separately; the API only returns their URLs.
+
+There are no fabricated production agreements or versions in migrations. An empty
+required-document registry fails closed. `POST /v1/me/consents` accepts decisions
+only, resolves versions on the backend, and records server timestamps. Re-accepting
+appends history; a rejection or newer required document version requires consent
+again. Consent history cannot be updated or deleted through ordinary SQL operations.
+Consent revocation and its processing policy are tracked separately in ONB-BE-12.

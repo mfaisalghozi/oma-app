@@ -54,6 +54,113 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/consents/documents:
+    get:
+      operationId: listActiveConsentDocuments
+      summary: List backend-owned active legal document versions
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConsentDocument"
+        "500":
+          description: Document registry unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+  /v1/me/consents:
+    get:
+      operationId: getOwnConsentStatus
+      security:
+        - supabaseJWT: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConsentDecision"
+        "401":
+          description: Invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Account missing or restricted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Consent lookup failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+    post:
+      operationId: recordConsentDecisions
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentSubmission"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ConsentResult"
+        "400":
+          description: Invalid request or unsupported consent type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Account missing or restricted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Consent persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:
@@ -124,3 +231,78 @@ components:
             - complete_onboarding
             - discovery
             - account_restricted
+    ConsentDocument:
+      type: object
+      required:
+        - type
+        - title
+        - version
+        - document_url
+        - required
+      properties:
+        type: &a2
+          type: string
+          enum:
+            - terms
+            - privacy
+            - sensitive_data
+        title: &a1
+          type: string
+        version: *a1
+        document_url: *a1
+        required:
+          type: boolean
+      additionalProperties: false
+    ConsentDecision:
+      type: object
+      required:
+        - type
+        - version
+        - decision
+        - accepted_at
+      properties:
+        type: *a2
+        version: *a1
+        decision:
+          type: string
+          enum:
+            - accepted
+            - rejected
+            - revoked
+        accepted_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ConsentSubmission:
+      type: object
+      required:
+        - consents
+      properties:
+        consents:
+          type: array
+          items:
+            type: object
+            required:
+              - type
+              - accepted
+            properties:
+              type: *a2
+              accepted:
+                type: boolean
+            additionalProperties: false
+          minItems: 1
+          maxItems: 3
+      additionalProperties: false
+    ConsentResult:
+      type: object
+      required:
+        - consents
+        - required_consents_completed
+      properties:
+        consents:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsentDecision"
+        required_consents_completed:
+          type: boolean
+      additionalProperties: false

@@ -110,8 +110,14 @@ func TestAccountRestrictionsAndDatabaseFailuresFailClosed(t *testing.T) {
 
 func TestAccountMigrationCanBeRevertedAndReapplied(t *testing.T) {
 	db, h := setup(t)
-	if err := migrations.Down(context.Background(), db); err != nil {
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
+	}
+	for range count {
+		if err := migrations.Down(context.Background(), db); err != nil {
+			t.Fatal(err)
+		}
 	}
 	call(t, h, "POST", "/v1/me/initialize", "alice", "", 500)
 	if err := migrations.Up(context.Background(), db); err != nil {
@@ -138,4 +144,81 @@ func TestActiveAccountGuard(t *testing.T) {
 	}
 	db.Close()
 	call(t, guarded, "GET", "/protected", "alice", "", 500)
+}
+
+func seedDocuments(t *testing.T, db *sql.DB) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO consent_documents(consent_type,title,document_version,document_url,required,active) VALUES
+ ('terms','Terms','1.0','https://legal.example.test/terms/1.0',true,true),
+ ('privacy','Privacy','1.0','https://legal.example.test/privacy/1.0',true,true),
+ ('sensitive_data','Sensitive data','1.0','https://legal.example.test/sensitive/1.0',true,true)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+const acceptAll = `{"consents":[{"type":"terms","accepted":true},{"type":"privacy","accepted":true},{"type":"sensitive_data","accepted":true}]}`
+
+func TestConsentAcceptanceAndAccountRouting(t *testing.T) {
+	db, h := setup(t)
+	seedDocuments(t, db)
+	docs := call(t, h, "GET", "/v1/consents/documents", "", "", 200)["data"].([]any)
+	if len(docs) != 3 {
+		t.Fatalf("wrong document list: %#v", docs)
+	}
+	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	partial := call(t, h, "POST", "/v1/me/consents", "alice", `{"consents":[{"type":"terms","accepted":true}]}`, 200)["data"].(map[string]any)
+	if partial["required_consents_completed"] != false {
+		t.Fatal("missing consent treated as complete")
+	}
+	call(t, h, "POST", "/v1/me/consents", "alice", `{"consents":[{"type":"unsupported","accepted":true}]}`, 400)
+	accepted := call(t, h, "POST", "/v1/me/consents", "alice", acceptAll, 200)["data"].(map[string]any)
+	if accepted["required_consents_completed"] != true {
+		t.Fatalf("required consent incomplete: %#v", accepted)
+	}
+	state := call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)["data"].(map[string]any)
+	if state["next_action"] != "complete_onboarding" {
+		t.Fatalf("wrong route: %#v", state)
+	}
+	// Simulate an already-onboarded account as the fixture for the bootstrap route.
+	if _, err := db.Exec(`UPDATE accounts SET onboarding_completed_at=now() WHERE user_id=$1`, alice); err != nil {
+		t.Fatal(err)
+	}
+	state = call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)["data"].(map[string]any)
+	if state["next_action"] != "discovery" {
+		t.Fatalf("wrong completed route: %#v", state)
+	}
+	call(t, h, "POST", "/v1/me/consents", "alice", acceptAll, 200)
+	status := call(t, h, "GET", "/v1/me/consents", "alice", "", 200)["data"].([]any)
+	if len(status) != 3 {
+		t.Fatalf("wrong latest consent status: %#v", status)
+	}
+}
+
+func TestConsentVersionChangeAndLatestDecision(t *testing.T) {
+	db, h := setup(t)
+	seedDocuments(t, db)
+	call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)
+	call(t, h, "POST", "/v1/me/consents", "alice", acceptAll, 200)
+	out := call(t, h, "POST", "/v1/me/consents", "alice", `{"consents":[{"type":"privacy","accepted":false}]}`, 200)["data"].(map[string]any)
+	if out["required_consents_completed"] != false {
+		t.Fatal("rejection did not supersede prior acceptance")
+	}
+	call(t, h, "POST", "/v1/me/consents", "alice", acceptAll, 200)
+	_, err := db.Exec(`UPDATE consent_documents SET active=false WHERE consent_type='terms'; INSERT INTO consent_documents(consent_type,title,document_version,document_url,active) VALUES('terms','Updated terms','2.0','https://legal.example.test/terms/2.0',true)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := call(t, h, "POST", "/v1/me/initialize", "alice", "", 200)["data"].(map[string]any)
+	if state["next_action"] != "accept_consents" {
+		t.Fatal("old document acceptance treated as current")
+	}
+	out = call(t, h, "POST", "/v1/me/consents", "alice", acceptAll, 200)["data"].(map[string]any)
+	if out["required_consents_completed"] != true {
+		t.Fatal("renewed consent did not restore completion")
+	}
+	if _, err = db.Exec(`DROP TABLE user_consents`); err != nil {
+		t.Fatal(err)
+	}
+	call(t, h, "POST", "/v1/me/initialize", "alice", "", 500)
 }
