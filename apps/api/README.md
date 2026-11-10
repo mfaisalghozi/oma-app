@@ -4,6 +4,20 @@ The runtime uses Supabase PostgreSQL, Supabase Auth and private Supabase Storage
 Local PostgreSQL/PostGIS is used only for disposable integration tests.
 
 
+## HTTP framework
+
+The API uses [Gin](https://gin-gonic.com/en/docs/) 1.12 for routing and request
+middleware. Existing domain handlers retain the standard `http.Handler` boundary;
+the Gin adapter transfers route parameters into request path values. JWT identity,
+account restrictions, strict JSON decoding, and response envelopes remain shared.
+Gin applies a ten-second request context deadline and sanitized panic recovery.
+Unknown routes and unsupported methods return JSON API errors. Automatic path
+redirects are disabled; GET routes also accept HEAD without a response body.
+Proxy headers are not trusted by default. No request-body or authorization-header
+logging is enabled. Set `GIN_MODE=release` in deployment to suppress debug route
+registration output; server timeouts and graceful shutdown remain configured in
+`cmd/api`.
+
 ## Runtime setup
 
 Install Go 1.26+ and run `npm ci` at the monorepo root. From `apps/api`, run
@@ -97,7 +111,6 @@ Supabase database in one transaction and verified after commit. See
 counts and maintenance rules. Schema migrations do not apply this separate seed
 script automatically. The university set is intentionally limited to the three
 approved initial entries.
-
 
 ## Photo storage
 
@@ -235,3 +248,29 @@ For ONB-BE-01, run `go run ./cmd/auth-check` from this directory with
 without creating users or updating settings. See
 [Auth readiness](../../infrastructure/supabase/auth-readiness.md) for its limits,
 known public identifiers, and pending provider/SMTP/deep-link verification.
+
+## Swagger API documentation
+
+Start the API using `npm run api` from the repository root, then open:
+
+- Swagger UI: <http://localhost:8080/swagger/index.html> (`/swagger` redirects here).
+- OpenAPI YAML: <http://localhost:8080/openapi.yaml>.
+
+Use the host and port configured by `API_ADDR` when they differ from the default.
+Documentation is public and read-only; protected API operations still require a
+valid Supabase access token. Click **Authorize**, paste the access token without
+adding `Bearer`, and use **Try it out** to call an endpoint. Authorization is kept
+in the current page's memory and is not persisted across reloads. Requests from
+Try it out use the API origin serving the documentation, including its actual
+host and port. They execute real API operations, so use the intended environment.
+
+The single source of truth remains `libs/contracts/openapi.yaml`. The Go module
+in `libs/contracts` embeds that exact file into the API binary through a local
+module replacement. Swagger UI assets are also embedded through the pinned
+`github.com/swaggo/files/v2` dependency. No CDN or external validator is used at
+runtime, and no `swag init` or annotation generation step is needed. Update the
+shared YAML when API contracts change, then restart `npm run api` or rebuild the
+binary. Build from the repository checkout so the local contracts module exists;
+the compiled binary serves documentation independently of its working directory.
+
+Configuration follows the [Swagger UI configuration reference](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/).

@@ -10,7 +10,7 @@ This repository is an Nx monorepo that holds every app:
 | App | Stack | Status |
 | --- | --- | --- |
 | `apps/mobile` | Flutter (Android + iOS) | Onboarding flow in progress (ONB-FE tickets) |
-| `apps/api` | Go (Gin planned), Supabase Postgres + PostGIS, River jobs | Account initialization and authenticated onboarding API |
+| `apps/api` | Go (Gin), Supabase Postgres + PostGIS, River jobs | Account initialization and authenticated onboarding API |
 | `apps/web` | Vue (planned): landing, legal pages, backoffice | Placeholder |
 | `libs/contracts` | OpenAPI 3 | Shared API contract |
 
@@ -249,7 +249,9 @@ From the repository root:
 npm run api
 ```
 
-The API listens on port `8080` by default. In a second terminal, verify it with:
+The API listens on port `8080` by default. [Swagger UI](http://localhost:8080/swagger/index.html)
+and `/openapi.yaml` serve the shared API contract. Use **Authorize** with a Supabase
+access token to try protected endpoints. In a second terminal, verify health with:
 
 ```sh
 curl http://localhost:8080/health

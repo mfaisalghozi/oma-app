@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: Shared API contract for the Go backend and its clients.
 servers:
-  - url: http://localhost:8080
+  - url: /
 paths:
   /health:
     get:
