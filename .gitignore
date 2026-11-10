@@ -65,3 +65,6 @@ apps/mobile/config/*.json
 
 # Golden test failure artifacts
 apps/mobile/test/**/failures/
+
+# Local implementation notes
+/docs/

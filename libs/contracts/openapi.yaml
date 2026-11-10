@@ -11,14 +11,116 @@ paths:
       operationId: getHealth
       summary: Check API health
       responses:
-        '200':
+        "200":
           description: API is running
           content:
             application/json:
               schema:
                 type: object
-                required: [status]
+                required:
+                  - status
                 properties:
                   status:
                     type: string
-                    enum: [ok]
+                    enum:
+                      - ok
+  /v1/me/initialize:
+    post:
+      operationId: initializeAccount
+      summary: Initialize or retrieve the authenticated account
+      security:
+        - supabaseJWT: []
+      responses:
+        "200":
+          description: New or existing account state
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AccountState"
+        "401":
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Database or consent lookup failed; no successful state is returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+components:
+  securitySchemes:
+    supabaseJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    APIError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - details
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  reason:
+                    type: string
+    AccountState:
+      type: object
+      required:
+        - user_id
+        - account_status
+        - account_created
+        - onboarding_completed
+        - onboarding_completed_at
+        - next_action
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        account_status:
+          type: string
+          enum:
+            - active
+            - frozen
+            - suspended
+        account_created:
+          type: boolean
+        onboarding_completed:
+          type: boolean
+        onboarding_completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        suspended_until:
+          type: string
+          format: date-time
+          nullable: true
+        next_action:
+          type: string
+          enum:
+            - accept_consents
+            - complete_onboarding
+            - discovery
+            - account_restricted

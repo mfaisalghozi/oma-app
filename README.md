@@ -10,7 +10,7 @@ This repository is an Nx monorepo that holds every app:
 | App | Stack | Status |
 | --- | --- | --- |
 | `apps/mobile` | Flutter (Android + iOS) | Onboarding flow in progress (ONB-FE tickets) |
-| `apps/api` | Go (Gin planned), Supabase Postgres + PostGIS, River jobs | Scaffold with `GET /health` |
+| `apps/api` | Go (Gin planned), Supabase Postgres + PostGIS, River jobs | Account initialization and authenticated onboarding API |
 | `apps/web` | Vue (planned): landing, legal pages, backoffice | Placeholder |
 | `libs/contracts` | OpenAPI 3 | Shared API contract |
 
@@ -234,12 +234,12 @@ go mod download
 cd ../..
 ```
 
-The scaffold currently uses only the Go standard library, so this step may
-report that there are no module dependencies to download. A `go.sum` file will
-be generated when external dependencies requiring checksums are added.
+The API uses Supabase JWT verification and PostgreSQL/PostGIS. Dependencies
+and checksums are pinned in `go.mod` and `go.sum`.
 
-The current API and worker do not require a database, message broker, or `.env`
-file. Business modules, migrations, and job processing are not implemented yet.
+Configure API variables with `apps/api/.env.example`; see the
+[API guide](apps/api/README.md) for migrations and disposable integration tests.
+Nx loads project `.env` files; direct Go commands require exported variables.
 
 ### Run the API
 

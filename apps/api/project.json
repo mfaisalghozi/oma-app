@@ -92,6 +92,22 @@
         "cwd": "apps/api"
       },
       "cache": false
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "go test -tags integration -race -count=1 ./...",
+        "cwd": "apps/api"
+      }
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "go run ./cmd/migrate",
+        "cwd": "apps/api"
+      }
     }
   }
 }
