@@ -83,7 +83,7 @@ func (h *Handler) Active(next http.Handler) http.Handler {
 			httpapi.Fail(w, 500, "INTERNAL_SERVER_ERROR")
 			return
 		}
-		if err := statusError(s.Status); err != nil {
+		if err := StatusError(s.Status); err != nil {
 			httpapi.HandleError(w, err)
 			return
 		}
@@ -102,10 +102,11 @@ func LockActive(ctx context.Context, tx *sql.Tx, id string) error {
 	if err != nil {
 		return err
 	}
-	return statusError(status)
+	return StatusError(status)
 }
 
-func statusError(status string) error {
+// StatusError maps account state to the shared protected-endpoint restriction.
+func StatusError(status string) error {
 	switch status {
 	case "active":
 		return nil

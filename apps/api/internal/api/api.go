@@ -30,6 +30,7 @@ func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) htt
 	guard := func(h http.HandlerFunc) http.Handler { return auth.Middleware(verifier, accounts.Active(h)) }
 	mux.Handle("POST /v1/devices", guard(accounts.RegisterDevice))
 	mux.Handle("DELETE /v1/devices/{id}", guard(accounts.DeleteDevice))
+	mux.Handle("GET /v1/me/profile", guard(profiles.Read))
 	mux.Handle("POST /v1/me/onboarding", guard(profiles.Onboarding))
 	mux.Handle("POST /v1/photos/upload-urls", guard(photos.Reserve))
 	mux.Handle("POST /v1/photos/{id}/upload-url", guard(photos.Refresh))

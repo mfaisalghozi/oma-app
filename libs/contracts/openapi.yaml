@@ -850,6 +850,54 @@ paths:
         "404": *a6
         "422": *a7
         "500": *a8
+  /v1/me/profile:
+    get:
+      operationId: getOwnProfile
+      summary: Read the authenticated user’s profile, labels, and active photos
+      security:
+        - supabaseJWT: []
+      responses:
+        "200":
+          description: Own profile; no coordinates or private attractiveness score
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/OwnProfile"
+        "401":
+          description: Authentication, account, profile lookup or storage error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Authentication, account, profile lookup or storage error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "404":
+          description: Authentication, account, profile lookup or storage error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Authentication, account, profile lookup or storage error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "503":
+          description: Authentication, account, profile lookup or storage error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:
@@ -1189,3 +1237,81 @@ components:
               minimum: -180
               maximum: 180
       additionalProperties: false
+    OwnProfile:
+      type: object
+      required:
+        - user_id
+        - full_name
+        - birthdate
+        - gender
+        - show_me
+        - bio
+        - height_cm
+        - weight_kg
+        - looking_for
+        - hobbies
+        - photos
+        - created_at
+        - updated_at
+      properties:
+        user_id: &a14
+          type: string
+          format: uuid
+        full_name: &a15
+          type: string
+        birthdate:
+          type: string
+          format: date
+          description: Returned only to the authenticated profile owner
+        gender: &a16
+          type: object
+          required:
+            - id
+            - code
+            - label
+          properties:
+            id: *a14
+            code: *a15
+            label: *a15
+          nullable: true
+        pronoun: *a16
+        show_me: *a16
+        bio: *a15
+        height_cm:
+          type: integer
+        weight_kg:
+          type: integer
+        university:
+          type: object
+          nullable: true
+          properties:
+            id: *a14
+            name: *a15
+            country_code: *a15
+        ambition:
+          type: string
+          nullable: true
+        religion: *a16
+        personality: *a16
+        looking_for:
+          type: array
+          items: *a16
+        hobbies:
+          type: array
+          items:
+            type: object
+            properties:
+              id: *a14
+              code: *a15
+              label: *a15
+              category_id: *a14
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Photo"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time

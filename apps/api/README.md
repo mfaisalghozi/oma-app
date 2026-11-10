@@ -156,3 +156,25 @@ across accounts. Registering the same installation after switching accounts move
 that token to the new authenticated owner while preserving its device ID. The old
 owner can no longer delete it. `DELETE /v1/devices/{id}` only removes a device
 currently owned by the caller. Device tokens are never logged or returned.
+
+## Own profile and discovery eligibility
+
+`GET /v1/me/profile` returns the authenticated user's own profile with reference
+labels, selected hobbies/intentions and signed read URLs for active photos. It
+includes the owner's birthdate as specified by the technical document, but never
+exact coordinates or private attractiveness scores. It cannot select another user.
+
+Per the user's scope decision, there is **no discovery HTTP endpoint** yet.
+`internal/discovery.Eligibility` provides:
+
+- `Guard(handler)`: compose after JWT middleware to require an initialized active
+  account, completed onboarding, current required consent and a stored location.
+- `CandidateIDs(ctx, viewerID, limit)`: use the authenticated JWT subject for
+  `viewerID`. A read-only repeatable-read transaction checks the viewer and filters
+  candidates to active completed profiles with current consent, a location and at
+  least one active photo, as required by PRD M09.
+  It excludes the viewer and limits results to 1–100 IDs.
+
+The future discovery module must use this guard/query rather than unfiltered
+profile reads. Ranking and public-profile projection are outside this ticket.
+Tests exercise a consumer handler that composes these public interfaces.
