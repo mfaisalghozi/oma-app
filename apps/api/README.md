@@ -171,10 +171,23 @@ Per the user's scope decision, there is **no discovery HTTP endpoint** yet.
   account, completed onboarding, current required consent and a stored location.
 - `CandidateIDs(ctx, viewerID, limit)`: use the authenticated JWT subject for
   `viewerID`. A read-only repeatable-read transaction checks the viewer and filters
-  candidates to active completed profiles with current consent, a location and at
-  least one active photo, as required by PRD M09.
+  candidates to active completed profiles with current consent and a location.
   It excludes the viewer and limits results to 1–100 IDs.
 
 The future discovery module must use this guard/query rather than unfiltered
 profile reads. Ranking and public-profile projection are outside this ticket.
 Tests exercise a consumer handler that composes these public interfaces.
+
+## Profile updates
+
+`PATCH /v1/me/profile` requires an active completed account and current required
+consent. Only these supplied fields are editable: bio, height, weight, ambition,
+university, religion, personality, pronoun, show-me preference, looking-for IDs and
+hobby IDs. Optional scalar values can be cleared with JSON null; required fields
+cannot. Relation arrays replace the entire selection and must remain nonempty.
+
+Unsubmitted fields retain their current values. All edits commit in one
+transaction, and validation errors return 422 `INVALID_PROFILE_DATA` with field
+details. Birthdate, name, gender, photos and location are not editable through this
+endpoint. Birthdate verification remains a separate future flow; photos/location
+have separate endpoints. The response includes the new `updated_at` timestamp.

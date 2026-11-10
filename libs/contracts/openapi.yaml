@@ -898,6 +898,72 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+    patch:
+      operationId: updateOwnProfile
+      summary: Update only supplied editable profile fields
+      security:
+        - supabaseJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePatch"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - user_id
+                      - updated
+                      - updated_at
+                    properties:
+                      user_id:
+                        type: string
+                        format: uuid
+                      updated:
+                        type: boolean
+                      updated_at:
+                        type: string
+                        format: date-time
+        "400":
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "401":
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "403":
+          description: Active completed account and current consent required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "422":
+          description: INVALID_PROFILE_DATA with field details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+        "500":
+          description: Request invalid or persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
 components:
   securitySchemes:
     supabaseJWT:
@@ -1149,20 +1215,20 @@ components:
           format: uuid
           nullable: true
         show_me_option_id: *a12
-        bio:
+        bio: &a17
           type: string
           minLength: 1
           maxLength: 255
-        height_cm:
+        height_cm: &a18
           type: integer
           minimum: 100
           maximum: 250
-        weight_kg:
+        weight_kg: &a19
           type: integer
           minimum: 25
           maximum: 300
         university_id: *a13
-        ambition:
+        ambition: &a20
           type: string
           maxLength: 500
           nullable: true
@@ -1194,12 +1260,12 @@ components:
       properties:
         profile:
           $ref: "#/components/schemas/ProfileInput"
-        looking_for_ids:
+        looking_for_ids: &a21
           type: array
           items: *a12
           minItems: 1
           uniqueItems: true
-        hobby_ids:
+        hobby_ids: &a22
           type: array
           items: *a12
           minItems: 1
@@ -1315,3 +1381,19 @@ components:
         updated_at:
           type: string
           format: date-time
+    ProfilePatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        bio: *a17
+        height_cm: *a18
+        weight_kg: *a19
+        ambition: *a20
+        university_id: *a13
+        religion_id: *a13
+        personality_type_id: *a13
+        pronoun_id: *a13
+        show_me_option_id: *a12
+        looking_for_ids: *a21
+        hobby_ids: *a22
