@@ -32,7 +32,8 @@
       "options": {
         "commands": [
           "go build -o ../../dist/apps/api/api ./cmd/api",
-          "go build -o ../../dist/apps/api/worker ./cmd/worker"
+          "go build -o ../../dist/apps/api/worker ./cmd/worker",
+          "go build -o ../../dist/apps/api/auth-check ./cmd/auth-check"
         ],
         "cwd": "apps/api",
         "parallel": false
@@ -92,6 +93,30 @@
         "cwd": "apps/api"
       },
       "cache": false
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "go test -tags integration -race -count=1 ./...",
+        "cwd": "apps/api"
+      }
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "go run ./cmd/migrate",
+        "cwd": "apps/api"
+      }
+    },
+    "auth-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "go run ./cmd/auth-check",
+        "cwd": "apps/api"
+      }
     }
   }
 }

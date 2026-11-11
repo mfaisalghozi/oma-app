@@ -1,0 +1,16 @@
+{
+  "project_ref": "hflxevzciognmavdpcnt",
+  "project_url": "https://hflxevzciognmavdpcnt.supabase.co",
+  "provider_callback_url": "https://hflxevzciognmavdpcnt.supabase.co/auth/v1/callback",
+  "region": "ap-northeast-2",
+  "android_application_id": "com.mfaisalghozi.oma_app",
+  "ios_bundle_id": "com.mfaisalghozi.omaApp",
+  "production_site_url": null,
+  "mobile_redirect_uri": null,
+  "google_web_client_id": null,
+  "google_android_client_id": null,
+  "google_ios_client_id": null,
+  "apple_services_id": null,
+  "smtp_sender_domain": null,
+  "status": "known public identifiers only; null values still require the owning team's input"
+}
