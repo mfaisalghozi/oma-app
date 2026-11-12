@@ -60,6 +60,43 @@ schemas and delete only those schemas on cleanup. **Never** set `TEST_DATABASE_U
 to staging or production. Integration tests require this variable and fail rather
 than silently skip when it is missing. The integration target is never cached.
 
+Use a database that has no tables in `public` for `TEST_DATABASE_URL`. Each test
+creates its own schema and sets `search_path` to `<test schema>,public`. If
+`public` holds migrated tables, a test that drops its own tables falls through to
+the `public` copies and passes when it must fail.
+
+## Local database for development
+
+The mobile app needs a reachable API with seeded data. Use a disposable local
+database. Do not point this at the shared Supabase project.
+
+```sh
+# 1. Start Postgres/PostGIS on 127.0.0.1:55432
+docker compose -f infrastructure/docker/compose.test.yaml up -d --wait
+
+# 2. Create and migrate a development database
+docker exec oma-be-integration-postgres-1 \
+  psql -U postgres -d postgres -c 'CREATE DATABASE oma_dev;'
+export DATABASE_URL='postgresql://postgres:oma_test@127.0.0.1:55432/oma_dev'
+go run ./cmd/migrate
+
+# 3. Apply the two seed scripts. Migrations do not apply them.
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f catalogs/initial-review.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f catalogs/dev-consent-documents.sql
+
+# 4. Start the API. It needs the real Supabase URL and service key.
+export SUPABASE_URL='https://<project>.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='...'
+go run ./cmd/api
+```
+
+Keep the development database separate from `TEST_DATABASE_URL`. The first run
+needs `profile-photos` to exist in the Supabase project, because startup verifies
+the bucket and exits when the check fails.
+
+`catalogs/dev-consent-documents.sql` holds placeholder legal documents for local
+work only. It is not approved legal copy and must not reach a shared environment.
+
 
 
 ## Legal document registry

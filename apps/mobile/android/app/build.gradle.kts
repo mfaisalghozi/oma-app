@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.mfaisalghozi.oma_app"
-    // permission_handler_android 14.1.1 requires consumers to compile against 37+.
+    // permission_handler_android requires compileSdk 37; flutter.compileSdkVersion
+    // still resolves to 36 on the current stable channel, so pin it explicitly.
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 

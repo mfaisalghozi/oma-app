@@ -184,6 +184,27 @@ below) and point `API_BASE_URL` at it: `http://10.0.2.2:8080` from the Android
 emulator, `http://localhost:8080` from the iOS simulator, or your machine's LAN
 IP from a real device.
 
+#### Android SDK version
+
+The app compiles against Android SDK 37, because `permission_handler_android`
+requires it. `flutter.compileSdkVersion` still resolves to 36 on Flutter 3.47.x,
+so `android/app/build.gradle.kts` pins `compileSdk = 37`. Install the platform
+with `sdkmanager "platforms;android-37"` if Gradle reports it is missing.
+
+#### Photo moderation during local testing
+
+The photo step blocks upload until the on-device NSFW model scans the image. The
+model loads from the mirror URL and SHA256 in `config/dev.json`. While that mirror
+is not hosted, bypass the scan on a dev build:
+
+```sh
+flutter run --dart-define-from-file=config/dev.json --dart-define=NSFW_SCAN_BYPASS=true
+```
+
+The bypass is accepted only when `FLAVOR` is `dev`. `AppConfig.validate` throws at
+startup for every other flavor, so a release build cannot enable it. Moderation of
+uploaded photos still runs on the backend.
+
 Golden tests are rendered on Linux. To regenerate them after a UI change:
 
 ```sh
