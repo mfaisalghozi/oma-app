@@ -1,13 +1,34 @@
 openapi: 3.0.3
 info:
-  title: Oma API
+  title: OMA API
   version: 0.1.0
   description: Shared API contract for the Go backend and its clients.
+tags:
+  - name: Health
+    description: API health checks.
+  - name: Accounts
+    description: Authenticated account initialization and account state.
+  - name: Consents
+    description: Legal documents, consent decisions, and consent revocations.
+  - name: Profile Data
+    description: Master data used to build and update user profiles.
+  - name: Photos
+    description: Profile photo upload reservations and photo management.
+  - name: Onboarding
+    description: Submission of the complete onboarding form.
+  - name: Devices
+    description: Push notification device registration and removal.
+  - name: Profiles
+    description: Read and update the authenticated user's profile.
+  - name: Locations
+    description: Manage the authenticated user's location coordinates.
 servers:
   - url: /
 paths:
   /health:
     get:
+      tags:
+        - Health
       operationId: getHealth
       summary: Check API health
       responses:
@@ -26,6 +47,8 @@ paths:
                       - ok
   /v1/me/initialize:
     post:
+      tags:
+        - Accounts
       operationId: initializeAccount
       summary: Initialize or retrieve the authenticated account
       security:
@@ -56,6 +79,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/consents/documents:
     get:
+      tags:
+        - Consents
       operationId: listActiveConsentDocuments
       summary: List backend-owned active legal document versions
       responses:
@@ -80,6 +105,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/me/consents:
     get:
+      tags:
+        - Consents
       operationId: getOwnConsentStatus
       security:
         - supabaseJWT: []
@@ -116,6 +143,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/APIError"
     post:
+      tags:
+        - Consents
       operationId: recordConsentDecisions
       security:
         - supabaseJWT: []
@@ -163,6 +192,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/profile-data:
     get:
+      tags:
+        - Profile Data
       operationId: listProfileMasterData
       security:
         - supabaseJWT: []
@@ -289,6 +320,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/photos/upload-urls:
     post:
+      tags:
+        - Photos
       operationId: reservePhotoUploads
       security:
         - supabaseJWT: []
@@ -356,6 +389,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/photos/{id}/upload-url:
     post:
+      tags:
+        - Photos
       operationId: refreshPhotoUpload
       security:
         - supabaseJWT: []
@@ -422,6 +457,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/photos:
     get:
+      tags:
+        - Photos
       operationId: listOwnPhotos
       security:
         - supabaseJWT: []
@@ -483,6 +520,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/photos/{id}:
     patch:
+      tags:
+        - Photos
       operationId: updatePhoto
       security:
         - supabaseJWT: []
@@ -566,6 +605,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/APIError"
     delete:
+      tags:
+        - Photos
       operationId: deletePhoto
       security:
         - supabaseJWT: []
@@ -638,6 +679,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/me/onboarding:
     post:
+      tags:
+        - Onboarding
       operationId: submitOnboarding
       summary: Atomically persist the complete onboarding form
       security:
@@ -721,6 +764,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/devices:
     post:
+      tags:
+        - Devices
       operationId: registerDevice
       security:
         - supabaseJWT: []
@@ -773,42 +818,48 @@ paths:
                         type: boolean
                     additionalProperties: false
         "400": &a3
-          description: Invalid input, missing device, restricted account, or persistence
+          description:
+            Invalid input, missing device, restricted account, or persistence
             failure
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
         "401": &a4
-          description: Invalid input, missing device, restricted account, or persistence
+          description:
+            Invalid input, missing device, restricted account, or persistence
             failure
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
         "403": &a5
-          description: Invalid input, missing device, restricted account, or persistence
+          description:
+            Invalid input, missing device, restricted account, or persistence
             failure
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
         "404": &a6
-          description: Invalid input, missing device, restricted account, or persistence
+          description:
+            Invalid input, missing device, restricted account, or persistence
             failure
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
         "422": &a7
-          description: Invalid input, missing device, restricted account, or persistence
+          description:
+            Invalid input, missing device, restricted account, or persistence
             failure
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
         "500": &a8
-          description: Invalid input, missing device, restricted account, or persistence
+          description:
+            Invalid input, missing device, restricted account, or persistence
             failure
           content:
             application/json:
@@ -816,6 +867,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/devices/{id}:
     delete:
+      tags:
+        - Devices
       operationId: deleteOwnDevice
       security:
         - supabaseJWT: []
@@ -852,6 +905,8 @@ paths:
         "500": *a8
   /v1/me/profile:
     get:
+      tags:
+        - Profiles
       operationId: getOwnProfile
       summary: Read the authenticated user’s profile, labels, and active photos
       security:
@@ -899,6 +954,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/APIError"
     patch:
+      tags:
+        - Profiles
       operationId: updateOwnProfile
       summary: Update only supplied editable profile fields
       security:
@@ -966,6 +1023,8 @@ paths:
                 $ref: "#/components/schemas/APIError"
   /v1/me/location:
     put:
+      tags:
+        - Locations
       operationId: updateOwnLocation
       security:
         - supabaseJWT: []
@@ -1009,7 +1068,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/APIError"
         "403": &a11
-          description: Active completed account and current consent required for PUT;
+          description:
+            Active completed account and current consent required for PUT;
             DELETE remains available without consent
           content:
             application/json:
@@ -1028,6 +1088,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/APIError"
     delete:
+      tags:
+        - Locations
       operationId: deleteOwnLocation
       security:
         - supabaseJWT: []
@@ -1055,8 +1117,11 @@ paths:
         "500": *a13
   /v1/me/consents/revocations:
     post:
+      tags:
+        - Consents
       operationId: revokeConsents
-      summary: Append revocation decisions and restrict processing until required
+      summary:
+        Append revocation decisions and restrict processing until required
         consent is re-accepted
       security:
         - supabaseJWT: []
