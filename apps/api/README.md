@@ -81,8 +81,7 @@ export DATABASE_URL='postgresql://postgres:oma_test@127.0.0.1:55432/oma_dev'
 go run ./cmd/migrate
 
 # 3. Apply the two seed scripts. Migrations do not apply them.
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f catalogs/initial-review.sql
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f catalogs/dev-consent-documents.sql
+./scripts/seed-local.sh
 
 # 4. Start the API. It needs the real Supabase URL and service key.
 export SUPABASE_URL='https://<project>.supabase.co'
@@ -96,6 +95,11 @@ the bucket and exits when the check fails.
 
 `catalogs/dev-consent-documents.sql` holds placeholder legal documents for local
 work only. It is not approved legal copy and must not reach a shared environment.
+
+`scripts/seed-local.sh` applies both files to `DATABASE_URL` and stops on the
+first error. The API logs a warning at startup when no consent document is
+active, because the symptom of a missing registry row (every account stuck at
+`accept_consents`) is otherwise hard to trace.
 
 
 

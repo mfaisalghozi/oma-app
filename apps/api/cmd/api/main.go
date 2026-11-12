@@ -26,6 +26,17 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	// Onboarding fails closed when no consent document is active, and the
+	// symptom (every account stuck at accept_consents) is hard to trace back
+	// to a missing registry row. Say it once, loudly, at startup.
+	var activeDocuments int
+	if err = db.QueryRowContext(boot, `SELECT count(*) FROM consent_documents WHERE active`).Scan(&activeDocuments); err != nil {
+		log.Printf("warning: cannot read consent_documents: %v", err)
+	} else if activeDocuments == 0 {
+		log.Printf("warning: no active consent documents; every account will stop at accept_consents. Apply catalogs/dev-consent-documents.sql for local work, or insert the approved legal documents.")
+	}
+
 	issuer := strings.TrimRight(os.Getenv("SUPABASE_URL"), "/") + "/auth/v1"
 	if os.Getenv("SUPABASE_URL") == "" {
 		log.Fatal("SUPABASE_URL is required")

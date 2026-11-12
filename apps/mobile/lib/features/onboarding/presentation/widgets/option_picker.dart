@@ -45,6 +45,12 @@ class OptionPickerField extends ConsumerWidget {
               final picked = await showModalBottomSheet<_Pick>(
                 context: context,
                 showDragHandle: true,
+                // Without this the sheet is capped at 9/16 of the screen and a
+                // long list (16 personality types) clips at the bottom edge.
+                isScrollControlled: true,
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+                ),
                 builder: (_) => _OptionList(
                   title: label,
                   options: list,

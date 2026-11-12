@@ -49,6 +49,18 @@ func setup(t *testing.T) (*sql.DB, http.Handler) {
 		t.Fatal(err)
 	}
 	admin := stdlib.OpenDB(*cfg)
+	// A migrated `public` schema silently shadows this test's schema: the
+	// search_path below falls through to it, so a test that drops its own
+	// tables still finds the public copies and passes when it must fail.
+	var publicTables int
+	if err = admin.QueryRow(`SELECT count(*) FROM information_schema.tables
+		WHERE table_schema='public'
+		  AND table_name IN ('accounts','profiles','photos','consent_documents')`).Scan(&publicTables); err != nil {
+		t.Fatal(err)
+	}
+	if publicTables > 0 {
+		t.Fatal("TEST_DATABASE_URL points at a database with application tables in public; use a disposable database whose public schema is empty")
+	}
 	schema := fmt.Sprintf("test_%d", time.Now().UnixNano())
 	if _, err = admin.Exec("CREATE SCHEMA " + schema); err != nil {
 		t.Fatal(err)
