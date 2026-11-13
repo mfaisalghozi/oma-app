@@ -143,10 +143,25 @@ class _LocationBodyState extends ConsumerState<_LocationBody>
               width: 120,
               height: 120,
               decoration: BoxDecoration(color: c.mint, shape: BoxShape.circle),
-              child: Icon(Icons.near_me_outlined, size: 52, color: c.primary),
+              child: _busy
+                  ? const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    )
+                  : Icon(Icons.near_me_outlined, size: 52, color: c.primary),
             ),
           ),
           const SizedBox(height: 28),
+          if (_busy) ...[
+            Center(
+              child: Text(
+                'Getting your location…',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
           const _Point(
             icon: Icons.straighten,
             text: 'Distance is rounded to the nearest km',

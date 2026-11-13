@@ -47,6 +47,27 @@ HTTP integration tests load the seed twice into an isolated PostgreSQL/PostGIS
 schema, then verify searchable options, the reviewed label, the nine religion
 options, and hobby category associations through the API.
 
+## Development consent documents
+
+[dev-consent-documents.sql](dev-consent-documents.sql) is not part of this approved
+catalog. It holds placeholder legal documents for local and disposable databases
+only. It is not approved legal copy. Do not apply it to a shared, staging or
+production database.
+
+Onboarding needs one active document for each required consent type. Without these
+rows, `POST /v1/me/initialize` keeps returning `accept_consents`, so no account can
+finish onboarding. The legal document registry stays empty in migrations on purpose,
+and an empty registry fails closed. See "Legal document registry" in
+[../README.md](../README.md).
+
+Apply the file after migrations, in the same way as the catalog:
+
+```sh
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f catalogs/dev-consent-documents.sql
+```
+
+The insert is idempotent. A second run does nothing.
+
 ## Application receipt — 2026-11-09
 
 Applied to the existing OMA Supabase project `hflxevzciognmavdpcnt` using the API's

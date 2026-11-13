@@ -10,6 +10,8 @@ import '../domain/location_service.dart';
 import '../domain/push_service.dart';
 
 class GeolocatorLocationService implements LocationService {
+  static const _maxFixAge = Duration(minutes: 30);
+
   @override
   Future<LocationAccess> status() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
@@ -28,20 +30,31 @@ class GeolocatorLocationService implements LocationService {
 
   @override
   Future<RoundedFix> currentFix() async {
+    Position fix;
     try {
-      final p = await Geolocator.getCurrentPosition(
+      fix = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 15),
+          // `low` asks the low-power provider, which has nothing to return on a
+          // cold start, so the request sat until the time limit and then failed
+          // even with permission granted and a GPS fix available.
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
         ),
       );
-      return (
-        latitude: roundCoordinate(p.latitude),
-        longitude: roundCoordinate(p.longitude),
-      );
     } on Exception {
-      throw const DeviceFailure('location fix');
+      // A slightly stale fix still gives a usable distance, which beats
+      // dropping the user into the city picker.
+      final last = await Geolocator.getLastKnownPosition();
+      if (last == null ||
+          DateTime.now().difference(last.timestamp) > _maxFixAge) {
+        throw const DeviceFailure('location fix');
+      }
+      fix = last;
     }
+    return (
+      latitude: roundCoordinate(fix.latitude),
+      longitude: roundCoordinate(fix.longitude),
+    );
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -24,6 +26,9 @@ class FakeLocation implements LocationService {
   int requests = 0;
   int settingsOpened = 0;
 
+  /// Holds [currentFix] open so a test can observe the in-flight state.
+  Completer<void>? hold;
+
   @override
   Future<LocationAccess> status() async => answer;
 
@@ -35,6 +40,7 @@ class FakeLocation implements LocationService {
 
   @override
   Future<RoundedFix> currentFix() async {
+    if (hold != null) await hold!.future;
     if (failFix) throw const DeviceFailure('fix');
     return fix;
   }
@@ -180,6 +186,22 @@ void main() {
       expect(loc.longitude, 106.81);
       expect(loc.source, LocationSource.gps);
       expect(find.text('went:notifications'), findsOneWidget);
+    });
+
+    testWidgets('shows progress while the fix is in flight', (tester) async {
+      final hold = Completer<void>();
+      location.hold = hold;
+      await pumpRouted(tester, const LocationScreen());
+
+      await tester.tap(find.text('Allow location'));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Getting your location…'), findsOneWidget);
+
+      hold.complete();
+      await tester.pumpAndSettle();
+      expect(store.saved!.location!.source, LocationSource.gps);
     });
 
     testWidgets('denied shows the city picker; a city is saved', (
