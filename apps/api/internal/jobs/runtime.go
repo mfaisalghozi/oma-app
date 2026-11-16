@@ -9,6 +9,7 @@ import (
 	"github.com/riverqueue/river/rivermigrate"
 	"github.com/riverqueue/river/rivertype"
 	"log/slog"
+	"oma/apps/api/internal/discovery"
 	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/scores"
 	"time"
@@ -28,6 +29,7 @@ type Options struct {
 }
 type Runtime struct {
 	Client  *river.Client[*sql.Tx]
+	db      *sql.DB
 	scores  *scores.Service
 	options Options
 	cancel  context.CancelFunc
@@ -65,7 +67,7 @@ func New(db *sql.DB, projector *scores.Service, options Options) (*Runtime, erro
 	if db == nil || projector == nil {
 		return nil, errors.New("score worker dependencies required")
 	}
-	r := &Runtime{scores: projector, options: options, done: make(chan struct{})}
+	r := &Runtime{db: db, scores: projector, options: options, done: make(chan struct{})}
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &projectWorker{runtime: r})
 	river.AddWorker(workers, &nightlyWorker{runtime: r})
@@ -91,25 +93,39 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	return err
 }
 func (r *Runtime) Reconcile(ctx context.Context) error {
-	var failures []error
+	var errs []error
 	// Lease cleanup must run even when an unrelated queue insertion fails.
 	if r.options.Reconcile != nil {
-		if err := r.options.Reconcile(ctx); err != nil {
-			failures = append(failures, err)
-		}
+		errs = append(errs, r.options.Reconcile(ctx))
 	}
+	errs = append(errs, r.pruneMetadata(ctx))
 	if _, err := r.Client.Insert(ctx, ScoreProjectArgs{}, uniqueOpts()); err != nil {
-		failures = append(failures, err)
+		errs = append(errs, err)
 	}
 	due, err := r.scores.NightlyDue(ctx, time.Now().UTC())
 	if err != nil {
-		failures = append(failures, err)
+		errs = append(errs, err)
 	} else if due {
 		if _, err = r.Client.Insert(ctx, NightlyArgs{}, uniqueOpts()); err != nil {
-			failures = append(failures, err)
+			errs = append(errs, err)
 		}
 	}
-	return errors.Join(failures...)
+	return errors.Join(errs...)
+}
+func (r *Runtime) pruneMetadata(ctx context.Context) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	now := time.Now().UTC()
+	if _, err := discovery.PruneRequestKeysTx(ctx, tx, now); err != nil {
+		return err
+	}
+	if _, err := discovery.PruneCachesTx(ctx, tx, now); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *Runtime) Start(ctx context.Context) error {

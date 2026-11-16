@@ -1,7 +1,8 @@
 # DSC-BE-05 — score projection and nightly worker
 
-Branch: `feature/DSC-BE-05-score-worker`. Stacked on DSC-BE-03 swipe actions (`c151394`),
-which includes DSC-BE-02 deck/ranking and DSC-BE-04 limits (and their prerequisites).
+Branch: `feature/DSC-BE-05-score-worker`. Stacked on DSC-BE-03 swipe actions
+(`f4826ca`) and DSC-BE-02 cache retention (`f15ada6`), including DSC-BE-04 limits
+and their prerequisites.
 Migration 014 owns score tables and replaces the neutral `discovery_quality` view.
 No Describe jobs, providers, comment policy, Featured or billing behavior belongs
 in this ticket.
@@ -77,6 +78,13 @@ Set the server `DATABASE_URL` in the environment. Worker configuration uses the
 same validated Discovery policy as the API. Typed jobs are `score_project` and
 `nightly`; fast projection runs every second. Reconciliation runs at startup and
 every 60 seconds and restores missing score jobs and overdue nightly rebuilds.
+Each reconciliation first runs the optional domain hook, then prunes at most 1,000
+expired 24-hour swipe replay bindings and at most 1,000 expired deck caches older
+than seven days, including their owned cards/cursors, in one short transaction.
+Maintenance runs independently of River queue availability; hook, maintenance and
+queue failures are collected while other reconciliation work is still attempted.
+Permanent interactions, swipe events, quota operations and exposure history are
+untouched. Logical API expiry remains authoritative between cleanup runs.
 Nightly schedule is 00:00 Asia/Jakarta (17:00 UTC); successful rebuild runs are
 recorded durably so downtime catches up. SIGTERM stops intake and gives existing
 jobs 30 seconds to drain before cancellation. Nightly jobs permit up to ten minutes
@@ -104,3 +112,15 @@ at `t`, the ordinary fast run at `t+2s` claims one weighted event, and replay cl
 zero without changing quality. The fresh full suite passed with
 `go test -race -tags=integration -count=1 ./...`; `go vet ./...` and
 `go build ./...` also passed on the cutoff correction.
+
+Retention regression receipt: the public `Runtime.Reconcile` PostGIS test first
+failed because a missing `river_job` table prevented the domain hook. After the
+fix, both hook and queue errors are returned while expired bindings/cache children
+are removed, valid entries remain, and permanent interaction/event/quota/exposure
+history remains intact. The fixture requires no River migration or provider.
+The completed retention stack passed `go vet ./...`, `go build ./...`, and
+`go test -race -tags=integration -count=1 -p=1 ./...`. Package serialization avoids
+cross-package contention on the projector's database-wide advisory lock; a default
+parallel run passed all other packages but observed the score projector busy in
+one existing score test. Graphify AST update completed with the same optional SQL
+parser warning noted above.
