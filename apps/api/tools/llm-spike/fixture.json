@@ -1,0 +1,1 @@
+{"content":[{"type":"text","text":"{\"version\":\"spike-v1\",\"rewrite_id\":\"contoh fixture\",\"translation_en\":\"fixture example\",\"must\":[],\"nice\":[],\"not_searchable\":[]}"}],"usage":{"input_tokens":100,"output_tokens":50},"stop_reason":"end_turn"}
