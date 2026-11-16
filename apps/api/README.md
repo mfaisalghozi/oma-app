@@ -310,3 +310,14 @@ and source-event projection. The neutral views permit this ticket to compile and
 serve safe cold-start decks independently. PRO tier selection is an injected
 server callback, with no entitlement grants, action credits or billing in this
 ticket; the standalone API selects the free mix until that producer is wired.
+
+## Discovery score worker
+
+Apply domain migrations, then run `go run ./cmd/worker -migrate` explicitly to apply
+River-owned queue migrations. Start the worker with the server `DATABASE_URL` and
+validated `DISCOVERY_POLICY_FILE` used by the API. Fast score projection uses
+per-event receipts in batches of at most 1,000; nightly rebuilds run at midnight
+WIB with startup/60-second catch-up reconciliation. SIGTERM allows a 30-second
+drain. Phone verification and reply metadata require trusted Auth/Chat producer
+integration; absent facts retain fail-closed weighting and the reply prior.
+See [DSC-BE-05 operations and acceptance](docs/tickets/DSC-BE-05.md).
