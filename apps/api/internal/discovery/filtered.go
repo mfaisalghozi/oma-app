@@ -16,6 +16,7 @@ type CandidateClause struct {
 }
 type FilteredCandidate struct {
 	Candidate
+	Snapshot      string `json:"-"`
 	HeightCM      int
 	Bio, Ambition string
 	Quality       float64
@@ -58,11 +59,11 @@ func (q *CandidateQuery) Filtered(ctx context.Context, viewer string, radiusKM f
 	if len(niceMatches) > 0 {
 		relevance = "(" + strings.Join(niceMatches, "+") + ")/" + fmt.Sprint(len(niceMatches))
 	}
-	from := strings.Replace(candidateFrom, " WHERE p.user_id", ` LEFT JOIN discovery_quality q ON q.candidate_id=p.user_id AND q.segment_key=vg.code||':'||g.code WHERE p.user_id`, 1)
-	query := `WITH eligible AS (SELECT p.user_id,p.gender_id,date_part('year',age(p.birthdate))::int AS age,public.ST_Distance(l.location,vl.location)/1000 AS distance,COALESCE(activity.last_active_at,a.updated_at) AS active,p.height_cm,p.bio,COALESCE(p.ambition,'') AS ambition,COALESCE(q.percentile,0.5) AS quality,
+	from := candidateFrom(` LEFT JOIN discovery_quality q ON q.candidate_id=p.user_id AND q.segment_key=vg.code||':'||g.code`, true)
+	query := `WITH eligible AS (SELECT ` + evidenceSnapshotSQL + ` AS snapshot,p.user_id,p.gender_id,date_part('year',age(p.birthdate))::int AS age,public.ST_Distance(l.location,vl.location)/1000 AS distance,COALESCE(activity.last_active_at,a.updated_at) AS active,p.height_cm,p.bio,COALESCE(p.ambition,'') AS ambition,COALESCE(q.percentile,0.5) AS quality,
  jsonb_build_object('gender',jsonb_build_array(p.gender_id),'religion',jsonb_build_array(p.religion_id),'university',jsonb_build_array(p.university_id),'personality',jsonb_build_array(p.personality_type_id),'hobby',COALESCE((SELECT jsonb_agg(hobby_id) FROM profile_hobbies WHERE user_id=p.user_id),'[]'::jsonb),'looking_for',COALESCE((SELECT jsonb_agg(looking_for_id) FROM profile_looking_for WHERE user_id=p.user_id),'[]'::jsonb)) AS catalog,
  CASE WHEN ` + and(exact) + ` THEN 0 ELSE 1 END AS tier,
- 0.6*(` + relevance + `)+0.25*COALESCE(q.percentile,0.5)+0.15*GREATEST(0,1-public.ST_Distance(l.location,vl.location)/1000/GREATEST($2,0.001)) AS score` + from + ` AND ` + and(close) + ` AND NOT(COALESCE(q.completed_matches,0)>=10 AND COALESCE(q.reply_rate,0.75)<0.2)), ranked AS (SELECT *,row_number() OVER(PARTITION BY tier ORDER BY score DESC,distance,user_id) AS position FROM eligible) SELECT user_id,gender_id,age,distance,active,height_cm,bio,ambition,quality,catalog FROM ranked WHERE position<=10 ORDER BY tier,score DESC,distance,user_id LIMIT 10`
+ ` + fmt.Sprint(DescribeRelevanceWeight) + `*(` + relevance + `)+` + fmt.Sprint(DescribeQualityWeight) + `*COALESCE(q.percentile,0.5)+` + fmt.Sprint(DescribeDistanceWeight) + `*GREATEST(0,1-public.ST_Distance(l.location,vl.location)/1000/GREATEST($2,0.001)) AS score` + from + ` AND ` + and(close) + ` AND NOT(COALESCE(q.completed_matches,0)>=10 AND COALESCE(q.reply_rate,0.75)<0.2)), ranked AS (SELECT *,row_number() OVER(PARTITION BY tier ORDER BY score DESC,distance,user_id) AS position FROM eligible) SELECT snapshot,user_id,gender_id,age,distance,active,height_cm,bio,ambition,quality,catalog FROM ranked WHERE position<=10 ORDER BY tier,score DESC,distance,user_id LIMIT 10`
 	tx, err := q.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return nil, err
@@ -79,7 +80,7 @@ func (q *CandidateQuery) Filtered(ctx context.Context, viewer string, radiusKM f
 	for rows.Next() {
 		var c FilteredCandidate
 		var raw []byte
-		if err = rows.Scan(&c.ID, &c.GenderID, &c.Age, &c.DistanceKM, &c.LastActiveAt, &c.HeightCM, &c.Bio, &c.Ambition, &c.Quality, &raw); err != nil {
+		if err = rows.Scan(&c.Snapshot, &c.ID, &c.GenderID, &c.Age, &c.DistanceKM, &c.LastActiveAt, &c.HeightCM, &c.Bio, &c.Ambition, &c.Quality, &raw); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -118,13 +119,11 @@ func clauseSQL(c CandidateClause, bind func(any) string, relax bool) (string, st
 		}
 		n := *c.Number
 		min, max := 0.0, math.MaxFloat64
-		tolerance := 2.0
+		tolerance := DescribeNumericTolerance(c.Field, n)
 		if c.Field == "age" {
 			min, max = 18, 150
 		} else if c.Field == "height_cm" {
 			min, max = 100, 250
-		} else {
-			tolerance = math.Min(n*0.1, 5)
 		}
 		if n < min || n > max || (c.Field != "distance_km" && n != math.Trunc(n)) {
 			return fail()

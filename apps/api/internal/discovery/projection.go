@@ -26,11 +26,12 @@ type PublicUniversity struct {
 	CountryCode string `json:"country_code"`
 }
 type Card struct {
-	Hobbies     []PublicOption    `json:"hobbies"`
-	LookingFor  []PublicOption    `json:"looking_for"`
-	Personality *PublicOption     `json:"personality"`
-	Religion    *PublicOption     `json:"religion"`
-	University  *PublicUniversity `json:"university"`
+	EvidenceSnapshot string            `json:"-"`
+	Hobbies          []PublicOption    `json:"hobbies"`
+	LookingFor       []PublicOption    `json:"looking_for"`
+	Personality      *PublicOption     `json:"personality"`
+	Religion         *PublicOption     `json:"religion"`
+	University       *PublicUniversity `json:"university"`
 
 	ID               string  `json:"id"`
 	DisplayName      string  `json:"display_name"`
@@ -67,12 +68,12 @@ func (h *Handler) project(ctx context.Context, viewer string, ids []string, radi
 	for _, id := range ids {
 		args = append(args, id)
 	}
-	rows, err := h.DB.QueryContext(ctx, `SELECT p.user_id,p.full_name,date_part('year',age(p.birthdate))::int,p.height_cm,public.ST_Distance(l.location,vl.location)/1000,p.bio,p.ambition,NULL::text,NULL::text,p.revision,
+	rows, err := h.DB.QueryContext(ctx, `SELECT p.user_id,p.full_name,date_part('year',age(p.birthdate))::int,p.height_cm,public.ST_Distance(l.location,vl.location)/1000,p.bio,p.ambition,NULL::text,NULL::text,p.revision,`+evidenceSnapshotSQL+`,
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',h.id,'code',h.code,'label',h.label) ORDER BY h.code) FROM profile_hobbies ph JOIN hobbies h ON h.id=ph.hobby_id WHERE ph.user_id=p.user_id),'[]'::jsonb),
  COALESCE((SELECT jsonb_agg(jsonb_build_object('id',lf.id,'code',lf.code,'label',lf.label) ORDER BY lf.code) FROM profile_looking_for pl JOIN looking_for_options lf ON lf.id=pl.looking_for_id WHERE pl.user_id=p.user_id),'[]'::jsonb),
  COALESCE((SELECT jsonb_build_object('id',mb.id,'code',mb.code,'label',mb.label) FROM personality_types mb WHERE mb.id=p.personality_type_id),'null'::jsonb),
  COALESCE((SELECT jsonb_build_object('id',rel.id,'code',rel.code,'label',rel.label) FROM religions rel WHERE rel.id=p.religion_id),'null'::jsonb),
- COALESCE((SELECT jsonb_build_object('id',u.id,'name',u.name,'country_code',u.country_code) FROM universities u WHERE u.id=p.university_id),'null'::jsonb)`+candidateFrom+` AND p.user_id IN (`+placeholders(len(ids), 9)+`)`, args...)
+ COALESCE((SELECT jsonb_build_object('id',u.id,'name',u.name,'country_code',u.country_code) FROM universities u WHERE u.id=p.university_id),'null'::jsonb)`+candidateFrom("", radius != nil)+` AND p.user_id IN (`+placeholders(len(ids), 9)+`)`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (h *Handler) project(ctx context.Context, viewer string, ids []string, radi
 		var name string
 		var distance float64
 		var hobbies, lookingFor, personality, religion, university []byte
-		if err = rows.Scan(&c.ID, &name, &c.Age, &c.HeightCM, &distance, &c.Bio, &c.Ambition, &c.Occupation, &c.EducationDegree, &c.Revision, &hobbies, &lookingFor, &personality, &religion, &university); err != nil {
+		if err = rows.Scan(&c.ID, &name, &c.Age, &c.HeightCM, &distance, &c.Bio, &c.Ambition, &c.Occupation, &c.EducationDegree, &c.Revision, &c.EvidenceSnapshot, &hobbies, &lookingFor, &personality, &religion, &university); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -175,7 +176,7 @@ func placeholders(n, offset int) string {
 }
 
 func (h *Handler) ProjectRadius(ctx context.Context, viewer string, ids []string, radiusKM float64) ([]Card, error) {
-	if !finite(radiusKM) || radiusKM <= 0 {
+	if !finite(radiusKM) || radiusKM < 0 {
 		return nil, &httpapi.Error{Status: 400, Code: "INVALID_RADIUS"}
 	}
 	return h.project(ctx, viewer, ids, &radiusKM)

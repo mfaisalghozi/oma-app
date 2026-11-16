@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -25,7 +24,7 @@ func (h *Handler) pool(ctx context.Context, tx poolDB, viewer string, radius, ri
 	args := []any{viewer, radius, p.DefaultRadiusKM, p.MaxRadiusKM, p.LocationFreshDays, 14, p.DefaultMinAge, p.DefaultMaxAge, limit, ring, p.ShownDailyCap, p.PriorityTTLDays, p.PriorityCapBypass, p.Ranking.FallbackMean, h.now().In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02")}
 	priority := `EXISTS(SELECT 1 FROM discovery_incoming_priority ip WHERE ip.viewer_id=$1 AND ip.candidate_id=p.user_id AND ip.created_at>now()-make_interval(days=>$12) AND NOT EXISTS(SELECT 1 FROM deck_cache_cards dc JOIN deck_cache db ON db.id=dc.batch_id WHERE db.viewer_id=$1 AND dc.candidate_id=p.user_id AND dc.selection_bucket='priority' AND dc.delivered_at>=ip.created_at))`
 	fresh := `p.created_at>now()-interval '72 hours' AND COALESCE((SELECT sum(shown_today) FROM candidate_daily_exposures ex WHERE ex.candidate_id=p.user_id),0)<30`
-	from := strings.Replace(candidateFrom, " WHERE p.user_id", ` LEFT JOIN discovery_quality q ON q.candidate_id=p.user_id AND q.segment_key=vg.code||':'||g.code LEFT JOIN candidate_daily_exposures ex ON ex.candidate_id=p.user_id AND ex.bucket_date=$15::date WHERE p.user_id`, 1)
+	from := candidateFrom(` LEFT JOIN discovery_quality q ON q.candidate_id=p.user_id AND q.segment_key=vg.code||':'||g.code LEFT JOIN candidate_daily_exposures ex ON ex.candidate_id=p.user_id AND ex.bucket_date=$15::date`, false)
 	from += ` AND (COALESCE(ex.shown_today,0)<$11 OR EXISTS(SELECT 1 FROM discovery_exposures e WHERE e.viewer_id=$1 AND e.candidate_id=p.user_id AND e.bucket_date=$15::date) OR ($13 AND ` + priority + `))`
 	switch cohort {
 	case "priority":
