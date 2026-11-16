@@ -1,0 +1,151 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "rewrite_id",
+    "translation_en",
+    "must",
+    "nice",
+    "not_searchable"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": [
+        "spike-v1"
+      ]
+    },
+    "rewrite_id": {
+      "type": "string"
+    },
+    "translation_en": {
+      "type": "string"
+    },
+    "must": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "operator",
+          "number",
+          "text",
+          "evidence"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "age",
+              "height_cm",
+              "distance_km",
+              "gender",
+              "religion",
+              "university",
+              "personality",
+              "hobby",
+              "looking_for",
+              "bio",
+              "ambition"
+            ]
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "gte",
+              "lte",
+              "contains"
+            ]
+          },
+          "number": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "nice": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "field",
+          "operator",
+          "number",
+          "text",
+          "evidence"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "age",
+              "height_cm",
+              "distance_km",
+              "gender",
+              "religion",
+              "university",
+              "personality",
+              "hobby",
+              "looking_for",
+              "bio",
+              "ambition"
+            ]
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "gte",
+              "lte",
+              "contains"
+            ]
+          },
+          "number": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "not_searchable": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "reason"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
