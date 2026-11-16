@@ -1384,7 +1384,7 @@ paths:
           name: Idempotency-Key
           required: true
           schema: {type: string, minLength: 1, maxLength: 200}
-          description: Case-sensitive opaque key scoped to the authenticated owner. Replays require the same query and retry_of.
+          description: Case-sensitive opaque key scoped to the authenticated owner for 24 hours, independently of WIB midnight. Replays require the same query and retry_of. After expiry a fresh search gets a new permanent quota operation.
       requestBody:
         required: true
         content:

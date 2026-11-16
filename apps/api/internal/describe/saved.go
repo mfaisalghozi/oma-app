@@ -56,7 +56,7 @@ func (s *Service) Results(w http.ResponseWriter, r *http.Request) {
 		httpapi.HandleError(w, err)
 		return
 	}
-	rows, err := s.DB.QueryContext(r.Context(), `SELECT candidate_id,profile_revision,evaluation FROM describe_search_results WHERE search_id=$1 ORDER BY position`, id)
+	rows, err := s.DB.QueryContext(r.Context(), `SELECT candidate_id,profile_revision,evidence_snapshot,evaluation FROM describe_search_results WHERE search_id=$1 ORDER BY position`, id)
 	if err != nil {
 		httpapi.HandleError(w, err)
 		return
@@ -64,12 +64,14 @@ func (s *Service) Results(w http.ResponseWriter, r *http.Request) {
 	ids := []string{}
 	ordinals := map[string]int{}
 	revs := map[string]int64{}
+	snapshots := map[string]string{}
 	evaluations := map[string]*Evaluation{}
 	for rows.Next() {
 		var candidate string
 		var rev int64
+		var snapshot string
 		var raw []byte
-		if err = rows.Scan(&candidate, &rev, &raw); err != nil {
+		if err = rows.Scan(&candidate, &rev, &snapshot, &raw); err != nil {
 			break
 		}
 		var e Evaluation
@@ -79,6 +81,7 @@ func (s *Service) Results(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, candidate)
 		ordinals[candidate] = len(ids)
 		revs[candidate] = rev
+		snapshots[candidate] = snapshot
 		evaluations[candidate] = &e
 	}
 	if err == nil {
@@ -94,9 +97,32 @@ func (s *Service) Results(w http.ResponseWriter, r *http.Request) {
 		httpapi.HandleError(w, err)
 		return
 	}
+	if r.Method != http.MethodHead {
+		tx, e := s.DB.BeginTx(r.Context(), nil)
+		if e != nil {
+			httpapi.HandleError(w, e)
+			return
+		}
+		defer tx.Rollback()
+		cards, e = s.Retriever.Profiles.DeliverRadiusTx(r.Context(), tx, owner, cards, radius)
+		if e != nil {
+			httpapi.HandleError(w, e)
+			return
+		}
+		for _, card := range cards {
+			if _, e = tx.ExecContext(r.Context(), `UPDATE describe_search_results SET delivered_at=COALESCE(delivered_at,$3) WHERE search_id=$1 AND candidate_id=$2 AND EXISTS(SELECT 1 FROM describe_searches WHERE id=$1 AND owner_id=$4)`, id, card.ID, s.now(), owner); e != nil {
+				httpapi.HandleError(w, e)
+				return
+			}
+		}
+		if e = tx.Commit(); e != nil {
+			httpapi.HandleError(w, e)
+			return
+		}
+	}
 	out := []SavedResult{}
 	for _, card := range cards {
-		stale := card.Revision != revs[card.ID]
+		stale := card.Revision != revs[card.ID] || card.EvidenceSnapshot != snapshots[card.ID]
 		var e *Evaluation
 		ce := []CriterionEvaluation{}
 		if !stale {
@@ -114,14 +140,14 @@ func (s *Service) ContextTx(ctx context.Context, tx *sql.Tx, viewer, target, id 
 		return searchError(404, "NOT_FOUND")
 	}
 	var radius float64
-	err := tx.QueryRowContext(ctx, `SELECT s.effective_radius_km FROM describe_searches s JOIN describe_search_results r ON r.search_id=s.id WHERE s.id=$1 AND s.owner_id=$2 AND s.state='succeeded' AND r.candidate_id=$3`, id, viewer, target).Scan(&radius)
+	err := tx.QueryRowContext(ctx, `SELECT s.effective_radius_km FROM describe_searches s JOIN describe_search_results r ON r.search_id=s.id WHERE s.id=$1 AND s.owner_id=$2 AND s.state='succeeded' AND r.candidate_id=$3 AND r.delivered_at IS NOT NULL`, id, viewer, target).Scan(&radius)
 	if err == sql.ErrNoRows {
 		return searchError(404, "NOT_FOUND")
 	}
 	if err != nil {
 		return err
 	}
-	visible, err := s.Retriever.Query.VisibleTx(ctx, tx, viewer, target, radius)
+	visible, err := s.Retriever.Query.VisibleRadiusTx(ctx, tx, viewer, target, radius)
 	if err != nil {
 		return err
 	}

@@ -152,3 +152,12 @@ func (q *CandidateQuery) VisibleRadiusTx(ctx context.Context, tx *sql.Tx, viewer
 	got, err := q.candidates(ctx, tx, viewer, target, radiusKM, 1, true)
 	return len(got) == 1, err
 }
+
+func (q *CandidateQuery) EvidenceCurrentTx(ctx context.Context, tx *sql.Tx, viewer, target, snapshot string) (bool, error) {
+	var current bool
+	err := tx.QueryRowContext(ctx, `SELECT `+evidenceSnapshotSQL+`=$3 FROM profiles p JOIN user_locations l ON l.user_id=p.user_id JOIN profiles vp ON vp.user_id=$1 JOIN user_locations vl ON vl.user_id=vp.user_id WHERE p.user_id=$2`, viewer, target, snapshot).Scan(&current)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return current, err
+}

@@ -43,6 +43,9 @@ func check(ctx context.Context, q queryer, id string) error {
 	return nil
 }
 func (e *Eligibility) Check(ctx context.Context, id string) error { return check(ctx, e.DB, id) }
+func (e *Eligibility) CheckTx(ctx context.Context, tx *sql.Tx, id string) error {
+	return check(ctx, tx, id)
+}
 
 // Guard expects authentication middleware to have populated the JWT subject.
 func (e *Eligibility) Guard(next http.Handler) http.Handler {

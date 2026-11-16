@@ -24,16 +24,24 @@ CREATE TABLE describe_searches (
 );
 CREATE UNIQUE INDEX describe_one_inflight ON describe_searches(owner_id) WHERE state IN ('pending','running');
 CREATE INDEX describe_pending ON describe_searches(state,created_at);
+CREATE TABLE describe_search_request_keys (
+ owner_id UUID NOT NULL REFERENCES accounts(user_id),
+ key_hash TEXT NOT NULL,
+ search_id UUID NOT NULL REFERENCES describe_searches(id),
+ expires_at TIMESTAMPTZ NOT NULL,
+ PRIMARY KEY(owner_id,key_hash)
+);
+CREATE INDEX describe_request_expiry ON describe_search_request_keys(expires_at);
+ALTER TABLE describe_search_request_keys ENABLE ROW LEVEL SECURITY;
 CREATE TABLE describe_search_results (
  search_id UUID NOT NULL REFERENCES describe_searches(id) ON DELETE CASCADE,
  candidate_id UUID NOT NULL REFERENCES accounts(user_id),
  position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 10),
  profile_revision BIGINT NOT NULL,
+ evidence_snapshot TEXT NOT NULL,
  evaluation JSONB NOT NULL,
+ delivered_at TIMESTAMPTZ,
  PRIMARY KEY(search_id,candidate_id), UNIQUE(search_id,position)
 );
 ALTER TABLE describe_searches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE describe_search_results ENABLE ROW LEVEL SECURITY;
--- Explicit ownership also protects logs if a client role receives SELECT grants later.
-CREATE POLICY describe_search_owner ON describe_searches FOR SELECT USING(owner_id=NULLIF(current_setting('request.jwt.claim.sub',true),'')::uuid);
-CREATE POLICY describe_result_owner ON describe_search_results FOR SELECT USING(EXISTS(SELECT 1 FROM describe_searches s WHERE s.id=search_id AND s.owner_id=NULLIF(current_setting('request.jwt.claim.sub',true),'')::uuid));

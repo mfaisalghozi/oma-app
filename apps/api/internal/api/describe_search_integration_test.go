@@ -16,8 +16,10 @@ import (
 	"oma/apps/api/internal/jobs"
 	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/platform/auth"
+	"oma/apps/api/internal/platform/storage"
 	"oma/apps/api/internal/scores"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -403,4 +405,278 @@ func TestDescribeConcurrentLastSearchAndCaseSensitiveReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	createSearch(t, h, "fourth-search", "height 180", 429)
+}
+
+func TestDescribeZeroDistanceIsSuccessfulChargedEmptySearch(t *testing.T) {
+	_, s, h, p := searchService(t)
+	p.raw = []byte(`{"version":"v1","rewrite_id":"dalam 0","translation_en":"within 0","must":[{"field":"distance_km","operator":"lte","number":0,"text":"","evidence":"0"}],"nice":[],"not_searchable":[]}`)
+	created := createSearch(t, h, "zero-distance-search", "within 0", 202)["data"].(map[string]any)
+	id := created["search_id"].(string)
+	if err := s.Run(context.Background(), id); err != nil {
+		t.Fatal(err)
+	}
+	status := call(t, h, "GET", "/searches/"+id, "alice", "", 200)["data"].(map[string]any)
+	if status["status"] != "succeeded" {
+		t.Fatalf("valid zero-radius query failed: %+v", status)
+	}
+	result := call(t, h, "GET", "/searches/"+id+"/results", "alice", "", 200)["data"].(map[string]any)
+	if len(result["results"].([]any)) != 0 {
+		t.Fatalf("wrong zero-radius results: %+v", result)
+	}
+	usage := call(t, h, "GET", "/usage", "alice", "", 200)["data"].(map[string]any)["searches"].(map[string]any)
+	if usage["used"] != float64(1) {
+		t.Fatalf("successful empty zero-radius query not charged: %+v", usage)
+	}
+}
+
+func TestDescribeIdempotencySurvivesMidnightAndExpiresAfterTwentyFourHours(t *testing.T) {
+	_, s, h, _ := searchService(t)
+	now := time.Date(2026, 11, 16, 16, 59, 0, 0, time.UTC)
+	s.Now = func() time.Time { return now }
+	first := createSearch(t, h, "reusable-key", "height 180", 202)["data"].(map[string]any)
+	firstID := first["search_id"].(string)
+	if err := s.Run(context.Background(), firstID); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(2 * time.Minute)
+	replay := createSearch(t, h, "reusable-key", "height 180", 200)["data"].(map[string]any)
+	if replay["search_id"] != firstID {
+		t.Fatal("WIB rollover changed replay")
+	}
+	now = now.Add(24 * time.Hour)
+	pruned, err := s.PruneRequestKeys(context.Background())
+	if err != nil || pruned != 1 {
+		t.Fatalf("expired key maintenance: %d %v", pruned, err)
+	}
+	call(t, h, "GET", "/searches/"+firstID, "alice", "", 200)
+	latest := call(t, h, "GET", "/searches/latest", "alice", "", 200)["data"].(map[string]any)
+	if latest["search_id"] != firstID {
+		t.Fatal("request-key cleanup deleted last successful query/result")
+	}
+	fresh := createSearch(t, h, "reusable-key", "height 180", 202)["data"].(map[string]any)
+	freshID := fresh["search_id"].(string)
+	if freshID == firstID {
+		t.Fatal("expired key reused permanent settled quota operation")
+	}
+	if err := s.Run(context.Background(), freshID); err != nil {
+		t.Fatal(err)
+	}
+	pruned, err = s.PruneRequestKeys(context.Background())
+	if err != nil || pruned != 0 {
+		t.Fatalf("unexpired key deleted: %d %v", pruned, err)
+	}
+	replay = createSearch(t, h, "reusable-key", "height 180", 200)["data"].(map[string]any)
+	if replay["search_id"] != freshID {
+		t.Fatal("cleanup removed unexpired key")
+	}
+	call(t, h, "GET", "/searches/"+firstID, "alice", "", 200)
+	// Three total new-day operations are allowed; the old settled operation stays in its old bucket.
+	for i := 0; i < 2; i++ {
+		v := createSearch(t, h, fmt.Sprintf("fresh-day-%d", i), "height 180", 202)["data"].(map[string]any)
+		if err := s.Run(context.Background(), v["search_id"].(string)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	createSearch(t, h, "fresh-day-fourth", "height 180", 429)
+}
+
+func TestDescribeRetryRequiresOwnedFailedSearch(t *testing.T) {
+	db, s, h, p := searchService(t)
+	p.fail = true
+	failed := createSearch(t, h, "failed-attempt", "height 180", 202)["data"].(map[string]any)
+	failedID := failed["search_id"].(string)
+	if err := s.Run(context.Background(), failedID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO accounts(user_id) VALUES($1)`, bob); err != nil {
+		t.Fatal(err)
+	}
+	var foreignID string
+	if err := db.QueryRow(`INSERT INTO describe_searches(owner_id,request_id,query,payload_hash,state,parser_version,ranking_policy_version,policy_version) VALUES($1,gen_random_uuid(),'height 180','fixture','failed','v1','fixture','fixture') RETURNING id`, bob).Scan(&foreignID); err != nil {
+		t.Fatal(err)
+	}
+	retry := func(key, id string, want int) string {
+		t.Helper()
+		req := httptest.NewRequest("POST", "/searches", strings.NewReader(fmt.Sprintf(`{"query":"height 180","retry_of":%q}`, id)))
+		req.Header.Set("Authorization", "Bearer alice")
+		req.Header.Set("Idempotency-Key", key)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		if w.Code != want {
+			t.Fatalf("retry status%d want%d: %s", w.Code, want, w.Body.String())
+		}
+		if w.Code != 202 {
+			return ""
+		}
+		var out struct {
+			Data struct {
+				ID string `json:"search_id"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out.Data.ID
+	}
+	retry("foreign-retry", foreignID, 400)
+	p.fail = false
+	freshID := retry("owned-retry", failedID, 202)
+	if freshID == failedID {
+		t.Fatal("retry mutated old failed log")
+	}
+	if err := s.Run(context.Background(), freshID); err != nil {
+		t.Fatal(err)
+	}
+	retry("successful-retry", freshID, 400)
+	old := call(t, h, "GET", "/searches/"+failedID, "alice", "", 200)["data"].(map[string]any)
+	if old["status"] != "failed" {
+		t.Fatal("retry replaced failed log")
+	}
+}
+
+type describeSigningBarrier struct {
+	storage.Store
+	entered, release chan struct{}
+	once             sync.Once
+}
+
+func (s *describeSigningBarrier) SignRead(ctx context.Context, path string) (string, error) {
+	if strings.HasPrefix(path, "candidate/") {
+		s.once.Do(func() { close(s.entered); <-s.release })
+	}
+	return s.Store.SignRead(ctx, path)
+}
+func addDescribeCandidate(t *testing.T, db *sql.DB, id string) {
+	t.Helper()
+	for _, stmt := range []string{
+		`INSERT INTO accounts(user_id,onboarding_completed_at) VALUES($1,now())`,
+		`INSERT INTO profiles(user_id,full_name,birthdate,gender_id,show_me_option_id,bio,height_cm,weight_kg) SELECT $1,full_name,birthdate,gender_id,(SELECT id FROM show_me_options WHERE code='everyone'),'I enjoy hiking',180,weight_kg FROM profiles WHERE user_id='` + alice + `'`,
+		`INSERT INTO user_consents(user_id,consent_type,document_version,decision,recorded_at) SELECT $1,consent_type,document_version,decision,recorded_at FROM user_consents WHERE user_id='` + alice + `'`,
+		`INSERT INTO user_locations(user_id,location) SELECT $1,location FROM user_locations WHERE user_id='` + alice + `'`,
+		`INSERT INTO photos(id,user_id,storage_path,content_type,file_size,position,status) VALUES(gen_random_uuid(),$1,'candidate/photo.jpg','image/jpeg',1000,1,'active')`} {
+		if _, err := db.Exec(stmt, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE profiles SET show_me_option_id=(SELECT id FROM show_me_options WHERE code='everyone') WHERE user_id=$1`, alice); err != nil {
+		t.Fatal(err)
+	}
+}
+func TestDescribeCompletionRechecksRevocationAndChangedCandidates(t *testing.T) {
+	for _, change := range []string{"owner_revoked", "target_edited", "target_blocked"} {
+		t.Run(change, func(t *testing.T) {
+			db, s, h, _ := searchService(t)
+			candidate := "77777777-7777-4777-8777-000000000401"
+			addDescribeCandidate(t, db, candidate)
+			originalStore := s.Retriever.Profiles.Store
+			barrier := &describeSigningBarrier{Store: originalStore, entered: make(chan struct{}), release: make(chan struct{})}
+			s.Retriever.Profiles.Store = barrier
+			created := createSearch(t, h, "completion-check", "height 180", 202)["data"].(map[string]any)
+			id := created["search_id"].(string)
+			done := make(chan error, 1)
+			go func() { done <- s.Run(context.Background(), id) }()
+			select {
+			case <-barrier.entered:
+			case <-time.After(5 * time.Second):
+				t.Fatal("retrieval signing barrier not reached")
+			}
+			if change == "owner_revoked" {
+				realAPI := api.NewWithDescribeServices(db, identityFixture{}, originalStore, s.Retriever.Profiles.Policy, s.Limits, s)
+				call(t, realAPI, "POST", "/v1/me/consents/revocations", "alice", `{"consent_types":["sensitive_data"]}`, 200)
+			} else {
+				tx, err := db.Begin()
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer tx.Rollback()
+				for _, accountID := range []string{alice, candidate} {
+					var locked string
+					if err = tx.QueryRow(`SELECT user_id FROM accounts WHERE user_id=$1 FOR UPDATE`, accountID).Scan(&locked); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if change == "target_edited" {
+					_, err = tx.Exec(`UPDATE profiles SET bio='changed after retrieval' WHERE user_id=$1`, candidate)
+				} else {
+					_, err = tx.Exec(`INSERT INTO user_blocks(blocker_id,blocked_id) VALUES($1,$2)`, candidate, alice)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = tx.Commit(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			close(barrier.release)
+			if err := <-done; err != nil {
+				t.Fatal(err)
+			}
+			status := call(t, h, "GET", "/searches/"+id, "alice", "", 200)["data"].(map[string]any)
+			usage := call(t, h, "GET", "/usage", "alice", "", 200)["data"].(map[string]any)["searches"].(map[string]any)
+			if change == "owner_revoked" {
+				if status["status"] != "failed" || usage["used"] != float64(0) || usage["reserved"] != float64(0) {
+					t.Fatalf("revoked owner was charged: %+v %+v", status, usage)
+				}
+			} else {
+				if status["status"] != "succeeded" || usage["used"] != float64(1) {
+					t.Fatalf("valid empty completion not charged: %+v %+v", status, usage)
+				}
+				results := call(t, h, "GET", "/searches/"+id+"/results", "alice", "", 200)["data"].(map[string]any)["results"].([]any)
+				if len(results) != 0 {
+					t.Fatalf("post-retrieval change persisted stale evidence: %+v", results)
+				}
+			}
+		})
+	}
+}
+
+func TestDescribeLogsRemainBackendOnlyUnderRLS(t *testing.T) {
+	db, s, h, _ := searchService(t)
+	addDescribeCandidate(t, db, "77777777-7777-4777-8777-000000000501")
+	created := createSearch(t, h, "rls-owned-search", "height 180", 202)["data"].(map[string]any)
+	if err := s.Run(context.Background(), created["search_id"].(string)); err != nil {
+		t.Fatal(err)
+	}
+	role := fmt.Sprintf("describe_rls_%d", time.Now().UnixNano())
+	if _, err := db.Exec(`CREATE ROLE ` + role + ` NOLOGIN`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := db.Exec(`DROP OWNED BY ` + role); err != nil {
+			t.Error(err)
+		}
+		if _, err := db.Exec(`DROP ROLE ` + role); err != nil {
+			t.Error(err)
+		}
+	})
+	var schema string
+	if err := db.QueryRow(`SELECT current_schema()`).Scan(&schema); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`GRANT USAGE ON SCHEMA ` + schema + ` TO ` + role); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`GRANT SELECT ON describe_searches,describe_search_results,describe_search_request_keys TO ` + role); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec(`SET LOCAL ROLE ` + role); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.Exec(`SET LOCAL request.jwt.claim.sub='` + alice + `'`); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"describe_searches", "describe_search_results", "describe_search_request_keys"} {
+		var count int
+		if err = tx.QueryRow(`SELECT count(*) FROM ` + table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Fatalf("direct client role can read %s despite Go-only visibility checks", table)
+		}
+	}
 }

@@ -66,8 +66,7 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keySum := sha256.Sum256([]byte("describe:" + rawKey))
-	keyHex := hex.EncodeToString(keySum[:16])
-	key := keyHex[:8] + "-" + keyHex[8:12] + "-" + keyHex[12:16] + "-" + keyHex[16:20] + "-" + keyHex[20:]
+	key := hex.EncodeToString(keySum[:])
 	if input.RetryOf != nil && !httpapi.ValidID(*input.RetryOf) {
 		httpapi.Fail(w, 400, "INVALID_REQUEST")
 		return
@@ -93,7 +92,7 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var id, original string
-	err = tx.QueryRowContext(ctx, `SELECT id,payload_hash FROM describe_searches WHERE owner_id=$1 AND request_id=$2`, owner, key).Scan(&id, &original)
+	err = tx.QueryRowContext(ctx, `SELECT s.id,s.payload_hash FROM describe_search_request_keys k JOIN describe_searches s ON s.id=k.search_id AND s.owner_id=k.owner_id WHERE k.owner_id=$1 AND k.key_hash=$2 AND k.expires_at>$3`, owner, key, s.now()).Scan(&id, &original)
 	if err == nil {
 		if original != fingerprint {
 			httpapi.Fail(w, 409, "IDEMPOTENCY_CONFLICT")
@@ -130,7 +129,11 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 		httpapi.Fail(w, 409, "SEARCH_IN_PROGRESS")
 		return
 	}
-	_, err = s.Limits.ReserveTx(ctx, tx, limits.Request{OwnerID: owner, OperationID: key, Meter: limits.Searches, Units: 1, PayloadHash: fingerprint}, s.now())
+	if err = tx.QueryRowContext(ctx, `SELECT gen_random_uuid()`).Scan(&id); err != nil {
+		httpapi.HandleError(w, err)
+		return
+	}
+	_, err = s.Limits.ReserveTx(ctx, tx, limits.Request{OwnerID: owner, OperationID: id, Meter: limits.Searches, Units: 1, PayloadHash: fingerprint}, s.now())
 	if errors.Is(err, limits.ErrLimit) {
 		httpapi.Fail(w, 429, "SEARCH_QUOTA_EXHAUSTED")
 		return
@@ -139,7 +142,11 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 		httpapi.HandleError(w, err)
 		return
 	}
-	if err = tx.QueryRowContext(ctx, `INSERT INTO describe_searches(owner_id,request_id,query,payload_hash,created_at,retry_of,parser_version,ranking_policy_version,policy_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, owner, key, input.Query, fingerprint, s.now(), input.RetryOf, "v1", s.Retriever.Profiles.Policy.Ranking.Version, s.Retriever.Profiles.Policy.Version).Scan(&id); err != nil {
+	if err = tx.QueryRowContext(ctx, `INSERT INTO describe_searches(id,owner_id,request_id,query,payload_hash,created_at,retry_of,parser_version,ranking_policy_version,policy_version) VALUES($2,$1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, owner, id, input.Query, fingerprint, s.now(), input.RetryOf, "v1", s.Retriever.Profiles.Policy.Ranking.Version, s.Retriever.Profiles.Policy.Version).Scan(&id); err != nil {
+		httpapi.HandleError(w, err)
+		return
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO describe_search_request_keys(owner_id,key_hash,search_id,expires_at) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,key_hash) DO UPDATE SET search_id=EXCLUDED.search_id,expires_at=EXCLUDED.expires_at`, owner, key, id, s.now().Add(24*time.Hour)); err != nil {
 		httpapi.HandleError(w, err)
 		return
 	}

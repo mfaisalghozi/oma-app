@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"sort"
 	"time"
 
+	"oma/apps/api/internal/discovery"
 	"oma/apps/api/internal/limits"
+	"oma/apps/api/internal/platform/httpapi"
 )
 
 type attempt struct{ owner, id, key, hash, query, token string }
@@ -23,13 +26,21 @@ func (s *Service) Run(ctx context.Context, id string) error {
 	var c Criteria
 	if !s.configured() {
 		err = ErrProvider
-	} else {
+	} else if err = (&discovery.Eligibility{DB: s.DB}).Check(work, a.owner); err == nil {
 		c, err = s.Parser.Parse(work, a.query)
 	}
 	result := Retrieval{Criteria: c}
 	if err == nil {
 		raw, _ := json.Marshal(c)
-		_, err = s.DB.ExecContext(work, `UPDATE describe_searches SET phase='retrieving',criteria=$3 WHERE id=$1 AND lease_token=$2 AND state='running'`, a.id, a.token, raw)
+		var updated sql.Result
+		updated, err = s.DB.ExecContext(work, `UPDATE describe_searches SET phase='retrieving',criteria=$3 WHERE id=$1 AND lease_token=$2 AND state='running' AND lease_until>$4`, a.id, a.token, raw, s.now())
+		if err == nil {
+			var n int64
+			n, err = updated.RowsAffected()
+			if err == nil && n == 0 {
+				err = ErrProvider
+			}
+		}
 	}
 	if err == nil {
 		result, err = s.Retriever.Retrieve(work, a.owner, c)
@@ -82,19 +93,66 @@ func (s *Service) finish(ctx context.Context, a attempt, result Retrieval, code 
 		return err
 	}
 	defer tx.Rollback()
-	var lock string
-	if err = tx.QueryRowContext(ctx, `SELECT user_id FROM accounts WHERE user_id=$1 FOR UPDATE`, a.owner).Scan(&lock); err != nil {
-		return err
+
+	ids := []string{a.owner}
+	seen := map[string]bool{a.owner: true}
+	for _, v := range result.Results {
+		if !seen[v.Profile.ID] {
+			seen[v.Profile.ID] = true
+			ids = append(ids, v.Profile.ID)
+		}
 	}
-	var alive bool
-	err = tx.QueryRowContext(ctx, `SELECT lease_until>$3 FROM describe_searches WHERE id=$1 AND state='running' AND lease_token=$2 FOR UPDATE`, a.id, a.token, s.now()).Scan(&alive)
+	sort.Strings(ids)
+	for _, id := range ids {
+		var lock string
+		err = tx.QueryRowContext(ctx, `SELECT user_id FROM accounts WHERE user_id=$1 FOR UPDATE`, id).Scan(&lock)
+		if err != nil && !(err == sql.ErrNoRows && id != a.owner) {
+			return err
+		}
+	}
+
+	var leaseUntil time.Time
+	err = tx.QueryRowContext(ctx, `SELECT lease_until FROM describe_searches WHERE id=$1 AND state='running' AND lease_token=$2 FOR UPDATE`, a.id, a.token).Scan(&leaseUntil)
 	if err == sql.ErrNoRows {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	if !alive {
+	if !s.now().Before(leaseUntil) {
+		code = "SEARCH_FAILED"
+	}
+
+	if code == "" {
+		if e := (&discovery.Eligibility{DB: s.DB}).CheckTx(ctx, tx, a.owner); e != nil {
+			var apiError *httpapi.Error
+			if !errors.As(e, &apiError) {
+				return e
+			}
+			code = "SEARCH_FAILED"
+		}
+	}
+	if code == "" {
+		current := make([]Result, 0, len(result.Results))
+		for _, v := range result.Results {
+			visible, e := s.Retriever.Query.VisibleRadiusTx(ctx, tx, a.owner, v.Profile.ID, result.EffectiveRadiusKM)
+			if e != nil {
+				return e
+			}
+			if !visible {
+				continue
+			}
+			unchanged, e := s.Retriever.Query.EvidenceCurrentTx(ctx, tx, a.owner, v.Profile.ID, v.Profile.EvidenceSnapshot)
+			if e != nil {
+				return e
+			}
+			if unchanged {
+				current = append(current, v)
+			}
+		}
+		result.Results = current
+	}
+	if !s.now().Before(leaseUntil) {
 		code = "SEARCH_FAILED"
 	}
 	req := limits.Request{OwnerID: a.owner, OperationID: a.key, Meter: limits.Searches, Units: 1, PayloadHash: a.hash}
@@ -130,7 +188,7 @@ func (s *Service) finish(ctx context.Context, a attempt, result Retrieval, code 
 			if err != nil {
 				return err
 			}
-			if _, err = tx.ExecContext(ctx, `INSERT INTO describe_search_results(search_id,candidate_id,position,profile_revision,evaluation) VALUES($1,$2,$3,$4,$5)`, a.id, v.Profile.ID, i+1, v.Profile.Revision, raw); err != nil {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO describe_search_results(search_id,candidate_id,position,profile_revision,evidence_snapshot,evaluation) VALUES($1,$2,$3,$4,$5,$6)`, a.id, v.Profile.ID, i+1, v.Profile.Revision, v.Profile.EvidenceSnapshot, raw); err != nil {
 				return err
 			}
 		}
@@ -143,7 +201,7 @@ func (s *Service) finish(ctx context.Context, a attempt, result Retrieval, code 
 
 // A crashed worker refunds its original WIB hold when its durable lease expires.
 func (s *Service) reconcileExpired(ctx context.Context) error {
-	rows, err := s.DB.QueryContext(ctx, `SELECT id,owner_id,request_id,payload_hash,lease_token FROM describe_searches WHERE state='running' AND lease_until<=$1`, s.now())
+	rows, err := s.DB.QueryContext(ctx, `SELECT id,owner_id,request_id,payload_hash,lease_token FROM describe_searches WHERE state='running' AND lease_until<=$1 ORDER BY lease_until,id LIMIT 100`, s.now())
 	if err != nil {
 		return err
 	}

@@ -40,6 +40,9 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	if err := s.reconcileExpired(ctx); err != nil {
 		return err
 	}
+	if _, err := s.PruneRequestKeys(ctx); err != nil {
+		return err
+	}
 	if s.Client == nil {
 		return errors.New("Describe queue unavailable")
 	}
