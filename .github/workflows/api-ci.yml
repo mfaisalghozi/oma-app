@@ -33,7 +33,7 @@ jobs:
           POSTGRES_DB: oma_test
         ports: ['55432:5432']
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d oma_test"
           --health-interval 2s
           --health-timeout 5s
           --health-retries 30
