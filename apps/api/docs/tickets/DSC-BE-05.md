@@ -15,7 +15,10 @@ is processed on a later run. Receipts and score changes commit together. Project
 recomputes affected candidate/segment totals, so replay cannot add weight twice.
 An advisory transaction lock serializes projectors, including nightly runs.
 Repeatable-read snapshots keep the source set and receipts consistent when actions
-commit during a rebuild. Source swipe events and their receipts are never purged.
+commit during a rebuild. Both fast and nightly claims use the same `occurred_at <= now`
+cutoff as aggregation, so an event visible after the caller captures `now` remains
+unreceipted until an eligible later run. Source swipe events and their receipts
+are never purged.
 
 Segments use the event's historical viewer-gender:target-gender codes. Like and
 super-like each contribute one positive before actor weighting and decay. Passes
@@ -85,7 +88,8 @@ without importing their domains into Discovery's worker implementation.
 
 Public pure-function tests cover weight thresholds, restrictions and decay. Public
 score-service tests use disposable PostgreSQL/PostGIS for late lower-ID commits,
-replay, 1,001-event bounded backlog, equal paid/free positive weight, expiry,
+replay, future-cutoff deferral in both fast and nightly runs followed by exactly-once
+fast catch-up, 1,001-event bounded backlog, equal paid/free positive weight, expiry,
 retroactive suspension/phone revocation, priors, reply metadata and percentiles.
 Public worker tests cover explicit River migrations/replay, typed job replay and
 graceful draining with controlled in-flight work. Validation passed on the completed dependency stack: `go vet ./...`,
@@ -93,3 +97,10 @@ graceful draining with controlled in-flight work. Validation passed on the compl
 PostgreSQL/PostGIS database on localhost:55432. Graphify AST update completed; SQL
 graph extraction reported the optional `tree_sitter_sql` dependency is absent.
 Generated graph output remains local and is not part of the ticket commit.
+
+Cutoff regression receipt: both fast and nightly cases first failed because the
+event at `t+1s` was claimed by `Project(t)`. After the fix, each case claims zero
+at `t`, the ordinary fast run at `t+2s` claims one weighted event, and replay claims
+zero without changing quality. The fresh full suite passed with
+`go test -race -tags=integration -count=1 ./...`; `go vet ./...` and
+`go build ./...` also passed on the cutoff correction.
