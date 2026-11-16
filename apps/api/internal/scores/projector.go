@@ -50,8 +50,9 @@ func (s *Service) Project(ctx context.Context, now time.Time, nightly bool) (Res
 		return result, err
 	}
 	defer tx.Rollback()
+	// Relation identity isolates independent schemas while serializing every writer to these scores.
 	var locked bool
-	if err = tx.QueryRowContext(ctx, `SELECT pg_try_advisory_xact_lock(89217341)`).Scan(&locked); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT pg_try_advisory_xact_lock(89217341, 'score_projection_receipts'::regclass::oid::int)`).Scan(&locked); err != nil {
 		return result, err
 	}
 	if !locked {

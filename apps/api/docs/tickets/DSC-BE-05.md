@@ -119,8 +119,15 @@ fix, both hook and queue errors are returned while expired bindings/cache childr
 are removed, valid entries remain, and permanent interaction/event/quota/exposure
 history remains intact. The fixture requires no River migration or provider.
 The completed retention stack passed `go vet ./...`, `go build ./...`, and
-`go test -race -tags=integration -count=1 -p=1 ./...`. Package serialization avoids
-cross-package contention on the projector's database-wide advisory lock; a default
-parallel run passed all other packages but observed the score projector busy in
-one existing score test. Graphify AST update completed with the same optional SQL
-parser warning noted above.
+`go test -race -tags=integration -count=1 ./...` with default package parallelism.
+Graphify AST update completed with the optional SQL parser warning noted above.
+
+The projector's advisory transaction lock uses a stable score namespace and the
+resolved `score_projection_receipts` relation OID. Independent schemas therefore
+project concurrently; workers addressing the same score tables still serialize,
+even through different search paths. A PostGIS regression holds the lock in one
+schema, verifies fast and nightly runs return `Busy` without claiming events,
+projects another schema successfully, then verifies catch-up after lock release.
+The test first failed against the former database-wide lock before the change.
+Drain existing workers before deploying this advisory-lock namespace change so
+old and updated binaries cannot project concurrently with different lock keys.
