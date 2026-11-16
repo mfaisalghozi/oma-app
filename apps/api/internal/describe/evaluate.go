@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"oma/apps/api/internal/discovery"
 	"strings"
 )
 
@@ -71,7 +72,7 @@ func Evaluate(c Criteria, e Evidence, maxDistanceKM float64) (Evaluation, error)
 	if len(c.Nice) > 0 {
 		relevance = float64(niceMatched) / float64(len(c.Nice))
 	}
-	out.Score = 0.6*relevance + 0.25*e.Quality + 0.15*math.Max(0, 1-e.DistanceKM/math.Max(maxDistanceKM, 0.001))
+	out.Score = discovery.DescribeRelevanceWeight*relevance + discovery.DescribeQualityWeight*e.Quality + discovery.DescribeDistanceWeight*math.Max(0, 1-e.DistanceKM/math.Max(maxDistanceKM, 0.001))
 	out.Reason = fmt.Sprintf("Matched %d of %d criteria", out.Matched, out.Total)
 	if len(reasons) > 0 {
 		out.Reason += ": " + strings.Join(reasons, ", ")
@@ -84,13 +85,13 @@ func match(c Criterion, e Evidence) (bool, float64, float64) {
 		switch c.Field {
 		case "age":
 			value = float64(e.Age)
-			tolerance = 2
+			tolerance = discovery.DescribeNumericTolerance(c.Field, *c.Number)
 		case "height_cm":
 			value = float64(e.HeightCM)
-			tolerance = 2
+			tolerance = discovery.DescribeNumericTolerance(c.Field, *c.Number)
 		case "distance_km":
 			value = e.DistanceKM
-			tolerance = math.Min(*c.Number*0.1, 5)
+			tolerance = discovery.DescribeNumericTolerance(c.Field, *c.Number)
 		default:
 			return false, 0, 0
 		}

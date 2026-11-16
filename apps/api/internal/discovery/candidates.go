@@ -34,14 +34,14 @@ type CandidateQuery struct {
 	Policy CandidatePolicy
 }
 
-const candidateFrom = ` FROM profiles p JOIN accounts a ON a.user_id=p.user_id JOIN user_locations l ON l.user_id=p.user_id
+const candidateJoins = ` FROM profiles p JOIN accounts a ON a.user_id=p.user_id JOIN user_locations l ON l.user_id=p.user_id
  JOIN profiles vp ON vp.user_id=$1 JOIN user_locations vl ON vl.user_id=vp.user_id
  JOIN gender_options g ON g.id=p.gender_id JOIN gender_options vg ON vg.id=vp.gender_id
  JOIN show_me_options sm ON sm.id=p.show_me_option_id JOIN show_me_options vsm ON vsm.id=vp.show_me_option_id
- LEFT JOIN discovery_activity activity ON activity.user_id=p.user_id
- WHERE p.user_id<>$1 AND a.status='active' AND a.onboarding_completed_at IS NOT NULL AND required_consents_completed(p.user_id)
+ LEFT JOIN discovery_activity activity ON activity.user_id=p.user_id`
+
+const candidateWhere = ` WHERE p.user_id<>$1 AND a.status='active' AND a.onboarding_completed_at IS NOT NULL AND required_consents_completed(p.user_id)
  AND EXISTS(SELECT 1 FROM photos ph WHERE ph.user_id=p.user_id AND ph.status='active')
- AND public.ST_DWithin(l.location,vl.location,LEAST(COALESCE(NULLIF($2,0),vp.radius_km,$3),$4)*1000)
  AND l.updated_at>now()-make_interval(days=>$5) AND vl.updated_at>now()-make_interval(days=>$5)
  AND COALESCE(activity.last_active_at,a.updated_at)>now()-make_interval(days=>$6)
  AND (vsm.code='everyone' OR vsm.code=g.code) AND (sm.code='everyone' OR sm.code=vg.code)
@@ -50,6 +50,19 @@ const candidateFrom = ` FROM profiles p JOIN accounts a ON a.user_id=p.user_id J
  AND date_part('year',age(vp.birthdate)) BETWEEN COALESCE(p.min_age,$7) AND COALESCE(p.max_age,$8)
  AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=$1 AND b.blocked_id=p.user_id) OR (b.blocker_id=p.user_id AND b.blocked_id=$1))
  AND NOT EXISTS(SELECT 1 FROM discovery_pair_exclusions e WHERE e.viewer_id=$1 AND e.candidate_id=p.user_id)`
+
+func candidateFrom(extraJoins string, explicitRadius bool) string {
+	radius := "COALESCE(NULLIF($2,0),vp.radius_km,$3)"
+	if explicitRadius {
+		radius = "COALESCE($2::double precision,$3::double precision)"
+	}
+	return candidateJoins + extraJoins + candidateWhere + " AND public.ST_DWithin(l.location,vl.location,LEAST(" + radius + ",$4::double precision)*1000)"
+}
+
+// Includes relation evidence that can change without a profile revision increment.
+const evidenceSnapshotSQL = `jsonb_build_array(p.revision,vp.revision,date_part('year',age(p.birthdate)),l.location_version,vl.location_version,
+ COALESCE((SELECT jsonb_agg(hobby_id ORDER BY hobby_id) FROM profile_hobbies WHERE user_id=p.user_id),'[]'::jsonb),
+ COALESCE((SELECT jsonb_agg(looking_for_id ORDER BY looking_for_id) FROM profile_looking_for WHERE user_id=p.user_id),'[]'::jsonb))::text`
 
 // Candidates returns an internal eligible pool, not a ranked deck or public projection.
 // A zero radius uses the stored viewer preference, then the configured default.
@@ -65,7 +78,7 @@ func (q *CandidateQuery) Candidates(ctx context.Context, viewer string, radiusKM
 	if err = check(ctx, tx, viewer); err != nil {
 		return nil, err
 	}
-	out, err := q.candidates(ctx, tx, viewer, "", radiusKM, limit)
+	out, err := q.candidates(ctx, tx, viewer, "", radiusKM, limit, false)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +99,7 @@ func (q *CandidateQuery) VisibleTx(ctx context.Context, tx *sql.Tx, viewer, targ
 	if err := check(ctx, tx, viewer); err != nil {
 		return false, err
 	}
-	got, err := q.candidates(ctx, tx, viewer, target, radiusKM, 1)
+	got, err := q.candidates(ctx, tx, viewer, target, radiusKM, 1, false)
 	return len(got) == 1, err
 }
 func (q *CandidateQuery) validate(radius float64, limit int) error {
@@ -101,10 +114,10 @@ func (q *CandidateQuery) validate(radius float64, limit int) error {
 	}
 	return nil
 }
-func (q *CandidateQuery) candidates(ctx context.Context, tx *sql.Tx, viewer, target string, radius float64, limit int) ([]Candidate, error) {
+func (q *CandidateQuery) candidates(ctx context.Context, tx *sql.Tx, viewer, target string, radius float64, limit int, explicitRadius bool) ([]Candidate, error) {
 	p := q.Policy
 	args := []any{viewer, radius, p.DefaultRadiusKM, p.MaxRadiusKM, p.LocationFreshDays, p.IdleDays, p.DefaultMinAge, p.DefaultMaxAge, limit}
-	stmt := `SELECT p.user_id,p.gender_id,date_part('year',age(p.birthdate))::int,public.ST_Distance(l.location,vl.location)/1000,COALESCE(activity.last_active_at,a.updated_at)` + candidateFrom
+	stmt := `SELECT p.user_id,p.gender_id,date_part('year',age(p.birthdate))::int,public.ST_Distance(l.location,vl.location)/1000,COALESCE(activity.last_active_at,a.updated_at)` + candidateFrom("", explicitRadius)
 	if target != "" {
 		stmt += ` AND p.user_id=$10`
 		args = append(args, target)
@@ -123,4 +136,19 @@ func (q *CandidateQuery) candidates(ctx context.Context, tx *sql.Tx, viewer, tar
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// VisibleRadiusTx rechecks an explicit Describe radius; zero means the same point.
+func (q *CandidateQuery) VisibleRadiusTx(ctx context.Context, tx *sql.Tx, viewer, target string, radiusKM float64) (bool, error) {
+	if err := q.validate(radiusKM, 1); err != nil {
+		return false, err
+	}
+	if !httpapi.ValidID(target) {
+		return false, &httpapi.Error{Status: 400, Code: "INVALID_TARGET"}
+	}
+	if err := check(ctx, tx, viewer); err != nil {
+		return false, err
+	}
+	got, err := q.candidates(ctx, tx, viewer, target, radiusKM, 1, true)
+	return len(got) == 1, err
 }

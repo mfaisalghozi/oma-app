@@ -56,7 +56,7 @@ func (r *Retriever) Retrieve(ctx context.Context, viewer string, c Criteria) (Re
 	}
 	out.RequestedRadiusKM = math.Min(radius, r.Query.Policy.MaxRadiusKM)
 	if hasDistanceBound {
-		radius += math.Min(radius*.1, 5)
+		radius += discovery.DescribeNumericTolerance("distance_km", radius)
 	}
 	radius = math.Min(radius, r.Query.Policy.MaxRadiusKM)
 	out.EffectiveRadiusKM = radius
@@ -78,7 +78,7 @@ func (r *Retriever) Retrieve(ctx context.Context, viewer string, c Criteria) (Re
 	}
 	for _, candidate := range candidates {
 		card, ok := projected[candidate.ID]
-		if !ok {
+		if !ok || card.EvidenceSnapshot != candidate.Snapshot {
 			continue
 		}
 		evaluation, e := Evaluate(c, Evidence{ID: candidate.ID, Age: candidate.Age, HeightCM: candidate.HeightCM, DistanceKM: candidate.DistanceKM, Quality: candidate.Quality, Bio: candidate.Bio, Ambition: candidate.Ambition, Catalog: candidate.Catalog}, radius)
