@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"oma/apps/api/internal/api"
+	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/platform/auth"
+	"oma/apps/api/internal/platform/config"
 	"oma/apps/api/internal/platform/database"
 	"oma/apps/api/internal/platform/storage"
 )
@@ -38,11 +40,19 @@ func main() {
 	if err = store.CheckBucket(boot); err != nil {
 		log.Fatal("profile storage bucket unavailable or incorrectly configured")
 	}
+	policy, err := config.LoadDiscovery(os.Getenv("DISCOVERY_POLICY_FILE"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	limitService, err := limits.NewService(limits.ConfigFromEnvironment(os.Getenv))
+	if err != nil {
+		log.Fatal(err)
+	}
 	addr := os.Getenv("API_ADDR")
 	if addr == "" {
 		addr = ":8080"
 	}
-	server := &http.Server{Addr: addr, Handler: api.NewWithStorage(db, verifier, store), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: addr, Handler: api.NewWithDiscoveryServices(db, verifier, store, policy, limitService), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
 	drained := make(chan struct{})
 	go func() {
 		defer close(drained)

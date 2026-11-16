@@ -1,0 +1,28 @@
+{
+  "version": "example-v1",
+  "deck_version": "deck-v1",
+  "ranking": {
+    "version": "ranking-v1",
+    "prior_strength": 10,
+    "fallback_mean": 0.3,
+    "reply_floor": 0.4,
+    "recency_half_life_days": 5,
+    "like_half_life_days": 30,
+    "min_segment_decisions": 200
+  },
+  "default_min_age": 18,
+  "default_max_age": 80,
+  "default_radius_km": 15,
+  "max_radius_km": 100,
+  "location_fresh_days": 30,
+  "material_movement_meters": 2000,
+  "shown_daily_cap": 150,
+  "priority_cap": 1,
+  "fresh_cap": 30,
+  "fresh_slots": 2,
+  "free_top_half": 5,
+  "pro_top_half": 10,
+  "distance_band_percent": [25, 25, 25, 25],
+  "priority_ttl_days": 7,
+  "priority_cap_bypass": true
+}

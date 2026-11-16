@@ -7,6 +7,8 @@ import (
 
 	"net/http"
 	"oma/apps/api/internal/account"
+	"oma/apps/api/internal/discovery"
+	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/masterdata"
 	"oma/apps/api/internal/media"
 	"oma/apps/api/internal/platform/apidocs"
@@ -24,6 +26,15 @@ func New(db *sql.DB, verifier auth.Verifier) http.Handler {
 }
 
 func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) http.Handler {
+	return NewWithDiscoveryPolicy(db, verifier, store, discovery.Policy{})
+}
+
+func NewWithDiscoveryPolicy(db *sql.DB, verifier auth.Verifier, store storage.Store, policy discovery.Policy) http.Handler {
+	service, _ := limits.NewService(limits.Config{})
+	return NewWithDiscoveryServices(db, verifier, store, policy, service)
+}
+
+func NewWithDiscoveryServices(db *sql.DB, verifier auth.Verifier, store storage.Store, policy discovery.Policy, service *limits.Service) http.Handler {
 	router := gin.New()
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = false
@@ -66,6 +77,7 @@ func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) htt
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { httpapi.Write(w, 200, map[string]string{"status": "ok"}) }),
 	)
 
+	deck := &discovery.Handler{DB: db, Store: store, Policy: policy, Limits: service}
 	photos := &media.Handler{DB: db, Store: store}
 	profiles := &profile.Handler{DB: db, Store: store}
 	consents := &profile.Consents{DB: db}
@@ -77,7 +89,22 @@ func NewWithStorage(db *sql.DB, verifier auth.Verifier, store storage.Store) htt
 		auth.Middleware(verifier, http.HandlerFunc(accounts.Initialize)),
 	)
 
-	guard := func(h http.HandlerFunc) http.Handler { return auth.Middleware(verifier, accounts.Active(h)) }
+	guard := func(h http.HandlerFunc) http.Handler {
+		return auth.Middleware(verifier, accounts.Active(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if err := discovery.RecordActivity(r.Context(), db, auth.UserID(r.Context())); err != nil {
+				httpapi.HandleError(w, err)
+				return
+			}
+			h(w, r)
+		})))
+	}
+	route("PATCH", "/v1/me/discovery-preferences", guard(deck.Preferences))
+	route("GET", "/v1/discovery", guard(deck.Deck))
+	route("POST", "/v1/discovery/actions", guard(deck.Action))
+	if service != nil {
+		route("GET", "/v1/me/usage", guard((&discovery.Eligibility{DB: db}).Guard(service.HandlerUsage(db)).ServeHTTP))
+	}
+	route("GET", "/v1/discovery/candidates/:candidate_id", guard(deck.Candidate))
 	route("POST", "/v1/devices", guard(accounts.RegisterDevice))
 	route("DELETE", "/v1/devices/:id", guard(accounts.DeleteDevice))
 	route("GET", "/v1/me/profile", guard(profiles.Read))
