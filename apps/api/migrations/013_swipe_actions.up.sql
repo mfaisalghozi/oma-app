@@ -4,7 +4,8 @@ CREATE TABLE profile_interactions (
  created_at TIMESTAMPTZ NOT NULL, response JSONB NOT NULL DEFAULT '{}'::jsonb, UNIQUE(actor_id,target_id),CHECK(actor_id<>target_id)
 );
 CREATE INDEX profile_interactions_incoming ON profile_interactions(target_id,actor_id);
-CREATE TABLE swipe_requests(actor_id UUID NOT NULL REFERENCES accounts(user_id),idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) BETWEEN 1 AND 200),payload_hash TEXT NOT NULL,action_id UUID NOT NULL REFERENCES profile_interactions(id),PRIMARY KEY(actor_id,idempotency_key));
+CREATE TABLE swipe_requests(actor_id UUID NOT NULL REFERENCES accounts(user_id),idempotency_key TEXT NOT NULL CHECK(length(idempotency_key)=64),payload_hash TEXT NOT NULL,action_id UUID NOT NULL REFERENCES profile_interactions(id),expires_at TIMESTAMPTZ NOT NULL,PRIMARY KEY(actor_id,idempotency_key));
+CREATE INDEX swipe_requests_expiry ON swipe_requests(expires_at,actor_id,idempotency_key);
 CREATE TABLE super_like_balances(user_id UUID PRIMARY KEY REFERENCES accounts(user_id),available INT NOT NULL DEFAULT 0 CHECK(available>=0));
 CREATE TABLE matches(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),user_low UUID NOT NULL REFERENCES accounts(user_id),user_high UUID NOT NULL REFERENCES accounts(user_id),created_at TIMESTAMPTZ NOT NULL,state TEXT NOT NULL DEFAULT 'matched' CHECK(state IN('matched','unmatched')),conversation_status TEXT NOT NULL DEFAULT 'pending' CHECK(conversation_status IN('pending','ready')),conversation_id UUID,UNIQUE(user_low,user_high),CHECK(user_low<user_high),CHECK((conversation_status='ready')=(conversation_id IS NOT NULL)));
 CREATE TABLE swipe_events(id BIGSERIAL PRIMARY KEY,action_id UUID NOT NULL UNIQUE REFERENCES profile_interactions(id),actor_id UUID NOT NULL REFERENCES accounts(user_id),target_id UUID NOT NULL REFERENCES accounts(user_id),action TEXT NOT NULL CHECK(action IN('pass','like','super_like')),segment_key TEXT NOT NULL,occurred_at TIMESTAMPTZ NOT NULL);
