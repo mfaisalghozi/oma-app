@@ -5,7 +5,10 @@ Branch: `feature/DSB-BE-04-search-history`.
 Dependencies actually merged: DSB-BE-03 retrieval `3a043e2`, DSC-BE-04 limits
 `ee9d35f`, DSC-BE-03 action wire/state `c151394`, DSC-BE-05 score/River worker
 `89fe7b1`. Corrected retrieval zero-radius/evidence-coherence `9aada77` and score cutoff
-`9363ac2` are also actually merged.
+`9363ac2` are also actually merged. Retrieval ranking/exposure follow-up `9352288`
+and shared action-key/cache maintenance `4588607` are actually merged as well.
+Final score-table advisory-lock isolation `d2e7a85` is included through the actual
+retrieval branch merge `d6ec041`.
 
 ## Implemented
 
@@ -22,10 +25,12 @@ Dependencies actually merged: DSB-BE-03 retrieval `3a043e2`, DSC-BE-04 limits
   initial request plus two retry attempts within the overall 30-second deadline.
   Work has a 30-second fenced lease. Restart/expired lease reconciliation refunds
   exactly once in the reservation's original WIB bucket. Late workers cannot
-  resurrect completed failures. Queue reconciliation runs at startup/every 60 seconds;
+  resurrect completed failures. Queue reconciliation runs at startup and every 60 seconds;
+  expired lease work is bounded to 100 rows per sweep.
   lease cleanup executes even when score-job insertion fails.
 - Query and parsed rewrite/translation logs are owner-selected and protected with
-  RLS without client policies, matching the established backend-only access model. Saved rows contain candidate IDs,
+  RLS without client policies, matching the established backend-only access model.
+  Saved rows contain candidate IDs,
   revisions and authored evidence only; no signed URLs or raw provider output,
   prompts, credentials, coordinates or inferred photo facts are persisted.
 - Settlement locks all involved accounts in canonical order, then rechecks current
@@ -59,10 +64,11 @@ quota rejection preserve recovery of the prior successful result.
 
 Query-log retention has no approved duration; no query-log expiry/deletion is
 enforced, and the last successful search is retained. Request-key mappings expire
-after the separately approved 24 hours. Physical expired-key pruning runs at startup and every 60 seconds, bounded to
-1000 expired mappings per invocation with SKIP LOCKED. Discovery cache pruning
-is owned by DSC-BE-02/05; permanent actions, source
-events, limits operations and saved search logs are not deleted.
+after the separately approved 24 hours. Physical expired-key pruning runs at
+startup and every 60 seconds, bounded to 1000 expired mappings per invocation with SKIP LOCKED. Discovery cache pruning
+is owned by DSC-BE-02/05 and runs through the shared worker maintenance hook.
+Permanent actions, source events, limits operations and saved search logs are not
+deleted.
 
 ## Validation status
 
@@ -73,11 +79,23 @@ restart, lease fencing, original WIB bucket release, cleanup during unrelated
 queue failure, stale evidence suppression and a real 53 km Describe action with
 ordinary viewer radius 1 km. Corrected explicit zero-radius successful-empty searches charge once. A
 24-hour key-reuse regression covers midnight replay, new random operations after
-expiry and original/current quota buckets. Full final vet/build/race evidence is
-recorded below after dependency merges.
+expiry and original/current quota buckets; physical cleanup preserves unexpired
+keys and permanent searches. Deterministic storage barriers cover owner revocation,
+target edits and blocks between retrieval and settlement. A disposable PostgreSQL
+role with direct SELECT grants and the owner JWT claim still reads zero rows from
+all Describe tables. Cross-surface tests cover regular/Describe caps in both
+directions, reload deduplication, HEAD and delivered-only actions. Final validation after all dependency merges: `go vet ./...`, `go build ./...`
+and fresh default-parallel `go test -race -tags=integration -count=1 ./...` all
+passed (API integration package 65.167s). A prior serialized full race run also
+passed. The historical cross-schema advisory-lock contention was fixed in the
+merged DSC-BE-05 dependency; the final default-parallel run needs no workaround.
+The final shared OpenAPI YAML parses using the existing Go YAML dependency.
+`graphify update .` completed; its optional SQL grammar is absent and five JSON
+files produce no AST nodes. Generated graph output remains local and uncommitted.
 
 Live model execution remains **BLOCKED** because user-confirmed account evidence
 and credentials are unavailable. No model calls, 50-query acceptance, live cost,
 p90 latency or final model winner are claimed. This limitation does not authorize
 requesting credentials again. Comment/moderation, Featured, billing/refund flows
-and production rollout remain outside this branch. No push or release merge.
+and production rollout remain outside this branch. The ticket owner makes no push or release merge; parent orchestration owns
+any authorized feature-branch push after frozen review.

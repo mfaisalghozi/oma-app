@@ -1450,7 +1450,7 @@ paths:
         schema: {type: string, format: uuid}
     get:
       operationId: describeSavedResults
-      description: Recheck current canonical eligibility at the persisted effective radius and sign fresh photos. A changed profile stays visible if eligible, with profile_updated true, empty criterion_evaluations, and no stale reason/count/tier/violations.
+      description: Recheck current canonical eligibility at the persisted effective radius and sign fresh photos. A changed profile stays visible if eligible, with profile_updated true, empty criterion_evaluations, and no stale reason/count/tier/violations. GET atomically enforces the shared Discovery first-delivery cap per viewer/candidate/WIB day; reloads deduplicate, HEAD does not deliver, and Describe actions require a delivered saved candidate.
       security: [{supabaseJWT: []}]
       responses:
         '200':

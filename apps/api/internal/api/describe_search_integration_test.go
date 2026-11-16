@@ -215,7 +215,7 @@ func TestDescribeSavedResultsUseAuthorizedCloseRadiusAndSuppressStaleEvidence(t 
 		`INSERT INTO profiles(user_id,full_name,birthdate,gender_id,show_me_option_id,bio,height_cm,weight_kg) SELECT $1,full_name,birthdate,gender_id,show_me_option_id,'I enjoy hiking',180,weight_kg FROM profiles WHERE user_id='` + alice + `'`,
 		`INSERT INTO user_consents(user_id,consent_type,document_version,decision,recorded_at) SELECT $1,consent_type,document_version,decision,recorded_at FROM user_consents WHERE user_id='` + alice + `'`,
 		`INSERT INTO user_locations(user_id,location) SELECT $1,public.ST_Project(location,53000,radians(90)) FROM user_locations WHERE user_id='` + alice + `'`,
-		`INSERT INTO photos(id,user_id,storage_path,content_type,file_size,position,status) VALUES(gen_random_uuid(),$1,'candidate/photo.jpg','image/jpeg',1000,1,'active')`} {
+		`INSERT INTO photos(id,user_id,storage_path,content_type,file_size,position,status) VALUES(gen_random_uuid(),$1,'candidate/'||($1::uuid)::text||'.jpg','image/jpeg',1000,1,'active')`} {
 		exec(stmt, candidate)
 	}
 	exec(`UPDATE profiles SET show_me_option_id=(SELECT id FROM show_me_options WHERE code='everyone'),radius_km=1 WHERE user_id=$1`, alice)
@@ -553,7 +553,7 @@ func addDescribeCandidate(t *testing.T, db *sql.DB, id string) {
 		`INSERT INTO profiles(user_id,full_name,birthdate,gender_id,show_me_option_id,bio,height_cm,weight_kg) SELECT $1,full_name,birthdate,gender_id,(SELECT id FROM show_me_options WHERE code='everyone'),'I enjoy hiking',180,weight_kg FROM profiles WHERE user_id='` + alice + `'`,
 		`INSERT INTO user_consents(user_id,consent_type,document_version,decision,recorded_at) SELECT $1,consent_type,document_version,decision,recorded_at FROM user_consents WHERE user_id='` + alice + `'`,
 		`INSERT INTO user_locations(user_id,location) SELECT $1,location FROM user_locations WHERE user_id='` + alice + `'`,
-		`INSERT INTO photos(id,user_id,storage_path,content_type,file_size,position,status) VALUES(gen_random_uuid(),$1,'candidate/photo.jpg','image/jpeg',1000,1,'active')`} {
+		`INSERT INTO photos(id,user_id,storage_path,content_type,file_size,position,status) VALUES(gen_random_uuid(),$1,'candidate/'||($1::uuid)::text||'.jpg','image/jpeg',1000,1,'active')`} {
 		if _, err := db.Exec(stmt, id); err != nil {
 			t.Fatal(err)
 		}
@@ -678,5 +678,63 @@ func TestDescribeLogsRemainBackendOnlyUnderRLS(t *testing.T) {
 		if count != 0 {
 			t.Fatalf("direct client role can read %s despite Go-only visibility checks", table)
 		}
+	}
+}
+
+func TestDescribeAndRegularDeckShareFirstDeliveryCap(t *testing.T) {
+	for _, first := range []string{"regular", "describe"} {
+		t.Run(first, func(t *testing.T) {
+			db, s, h, _ := searchService(t)
+			candidate := "77777777-7777-4777-8777-000000000601"
+			addDescribeCandidate(t, db, candidate)
+			addDescribeCandidate(t, db, bob)
+			if _, err := db.Exec(`INSERT INTO user_blocks(blocker_id,blocked_id) VALUES($1,$2)`, alice, bob); err != nil {
+				t.Fatal(err)
+			}
+			s.Retriever.Profiles.Policy.ShownDailyCap = 1
+			realAPI := api.NewWithDescribeServices(db, identityFixture{}, s.Retriever.Profiles.Store, s.Retriever.Profiles.Policy, s.Limits, s)
+			created := createSearch(t, h, "shared-cap-search", "height 180", 202)["data"].(map[string]any)
+			id := created["search_id"].(string)
+			if err := s.Run(context.Background(), id); err != nil {
+				t.Fatal(err)
+			}
+			action := func(want int) {
+				t.Helper()
+				req := httptest.NewRequest("POST", "/v1/discovery/actions", strings.NewReader(fmt.Sprintf(`{"candidate_id":%q,"kind":"like","context":{"kind":"describe","id":%q}}`, candidate, id)))
+				req.Header.Set("Authorization", "Bearer alice")
+				req.Header.Set("Idempotency-Key", "delivered-action")
+				w := httptest.NewRecorder()
+				realAPI.ServeHTTP(w, req)
+				if w.Code != want {
+					t.Fatalf("Describe action status%d want%d: %s", w.Code, want, w.Body.String())
+				}
+			}
+			action(404)
+			call(t, h, "HEAD", "/searches/"+id+"/results", "alice", "", 200)
+			action(404)
+			if first == "regular" {
+				deck := call(t, realAPI, "GET", "/v1/discovery", "bob", "", 200)["data"].(map[string]any)["cards"].([]any)
+				if len(deck) != 1 || deck[0].(map[string]any)["id"] != candidate {
+					t.Fatalf("HEAD consumed first-delivery cap: %+v", deck)
+				}
+				results := call(t, h, "GET", "/searches/"+id+"/results", "alice", "", 200)["data"].(map[string]any)["results"].([]any)
+				if len(results) != 0 {
+					t.Fatalf("Describe bypassed regular exposure cap: %+v", results)
+				}
+				action(404)
+			} else {
+				for i := 0; i < 2; i++ {
+					results := call(t, h, "GET", "/searches/"+id+"/results", "alice", "", 200)["data"].(map[string]any)["results"].([]any)
+					if len(results) != 1 {
+						t.Fatalf("reload consumed another exposure: %+v", results)
+					}
+				}
+				deck := call(t, realAPI, "GET", "/v1/discovery", "bob", "", 200)["data"].(map[string]any)["cards"].([]any)
+				if len(deck) != 0 {
+					t.Fatalf("regular deck bypassed Describe exposure cap: %+v", deck)
+				}
+				action(200)
+			}
+		})
 	}
 }
