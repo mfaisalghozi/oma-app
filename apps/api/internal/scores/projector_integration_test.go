@@ -255,3 +255,32 @@ func TestProjectionDefersEventsAfterCutoff(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectionLockScopesToScoreTables(t *testing.T) {
+	db, same, now := setup(t)
+	otherDB, independent, _ := setup(t)
+	event(t, db, 1, actor, candidate, "like", now)
+	event(t, otherDB, 1, actor, candidate, "like", now)
+	held, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Rollback()
+	if _, err := held.Exec(`SELECT pg_advisory_xact_lock(89217341, 'score_projection_receipts'::regclass::oid::int)`); err != nil {
+		t.Fatal(err)
+	}
+	for _, nightly := range []bool{false, true} {
+		if got := project(t, same, now, nightly); !got.Busy || got.Claimed != 0 {
+			t.Errorf("same-schema nightly=%v did not respect active projector: %+v", nightly, got)
+		}
+	}
+	if got := project(t, independent, now, false); got.Busy || got.Claimed != 1 {
+		t.Fatalf("independent schema blocked: %+v", got)
+	}
+	if err := held.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if got := project(t, same, now, false); got.Busy || got.Claimed != 1 {
+		t.Fatalf("released projector did not catch up: %+v", got)
+	}
+}
