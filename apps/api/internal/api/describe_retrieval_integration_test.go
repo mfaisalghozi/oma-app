@@ -93,7 +93,7 @@ func TestDescribeRetrievalFiltersBeforeLimitAndReturnsEvidenceBackedTiers(t *tes
 		t.Fatalf("authored hobbies evidence: %+v %v", hobbyResult, err)
 	}
 	raw, _ := json.Marshal(got)
-	for _, field := range []string{`"score"`, `"weight_kg"`, `"storage_path"`, `"birthdate"`, `"quality"`, `"latitude"`, `"EvidenceSnapshot"`, `"Snapshot"`, `"distance_km"`} {
+	for _, field := range []string{`"score"`, `"weight_kg"`, `"storage_path"`, `"birthdate"`, `"quality"`, `"reply_rate"`, `"idle_days"`, `"latitude"`, `"EvidenceSnapshot"`, `"Snapshot"`, `"distance_km"`} {
 		if strings.Contains(string(raw), field) {
 			t.Fatalf("leaked %s", field)
 		}
@@ -292,5 +292,88 @@ func TestDescribeConsumesRealQualityAndActionExclusions(t *testing.T) {
 		if result.Profile.ID == other {
 			t.Fatal("retained match returned")
 		}
+	}
+}
+
+func TestDescribeRanksReplyAndRecencyBeforeLimit(t *testing.T) {
+	for _, factor := range []string{"reply", "recency"} {
+		t.Run(factor, func(t *testing.T) {
+			db, _ := deckSetup(t)
+			exec := func(stmt string, args ...any) {
+				t.Helper()
+				if _, err := db.Exec(stmt, args...); err != nil {
+					t.Fatal(err)
+				}
+			}
+			fresh := "99999999-9999-4999-8999-999999999999"
+			cloneDeckUser(t, db, fresh)
+			if factor == "recency" {
+				for i := 0; i < 10; i++ {
+					id := fmt.Sprintf("33333333-3333-4333-8333-%012d", i)
+					cloneDeckUser(t, db, id)
+				}
+				exec(`UPDATE accounts SET updated_at=now()-interval '5 days' WHERE user_id NOT IN($1,$2)`, alice, fresh)
+			} else {
+				exec(`WITH m AS(INSERT INTO matches(user_low,user_high,created_at) VALUES(LEAST($1::uuid,$2::uuid),GREATEST($1::uuid,$2::uuid),now()-interval '3 days') RETURNING id) INSERT INTO score_reply_windows(match_id,opener_sender_id,respondent_id,opened_at) SELECT id,$1,$2,now()-interval '3 days' FROM m`, fresh, bob)
+			}
+			exec(`UPDATE profiles SET show_me_option_id=(SELECT id FROM show_me_options WHERE code='everyone')`)
+
+			actor := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+			exec(`INSERT INTO accounts(user_id,created_at,phone_verified_at) VALUES($1,now()-interval '10 days',now()-interval '10 days')`, actor)
+			exec(`WITH i AS(INSERT INTO profile_interactions(actor_id,target_id,action,context_kind,context_id,created_at) SELECT $1,p.user_id,'like','regular_deck',gen_random_uuid(),now() FROM profiles p WHERE p.user_id<>$2 RETURNING *) INSERT INTO swipe_events(action_id,actor_id,target_id,action,segment_key,occurred_at) SELECT i.id,i.actor_id,i.target_id,i.action,vg.code||':'||g.code,i.created_at FROM i JOIN profiles p ON p.user_id=i.target_id JOIN profiles vp ON vp.user_id=$2 JOIN gender_options g ON g.id=p.gender_id JOIN gender_options vg ON vg.id=vp.gender_id`, actor, alice)
+			projector, err := scores.New(db, deckPolicy().Ranking)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = projector.Project(context.Background(), time.Now(), true); err != nil {
+				t.Fatal(err)
+			}
+			r := describe.Retriever{Query: discovery.CandidateQuery{DB: db, Policy: discovery.CandidatePolicy{DefaultRadiusKM: 25, MaxRadiusKM: 100, DefaultMinAge: 18, DefaultMaxAge: 80, LocationFreshDays: 30, IdleDays: 14}}, Profiles: &discovery.Handler{DB: db, Store: deckReadStore{}, Policy: deckPolicy()}}
+			n := 100.0
+			c := describe.Criteria{Must: []describe.Criterion{{Field: "height_cm", Operator: "gte", Number: &n}}}
+			got, err := r.Retrieve(context.Background(), alice, c)
+			if err != nil || len(got.Results) == 0 || got.Results[0].Profile.ID != fresh {
+				t.Fatalf("%s did not rank before limit: %+v %v", factor, got, err)
+			}
+		})
+	}
+}
+
+func TestDescribeAppliesSharedExposureCapBeforeLimit(t *testing.T) {
+	db, _ := deckSetup(t)
+	exec := func(stmt string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(stmt, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 12; i++ {
+		id := fmt.Sprintf("33333333-3333-4333-8333-%012d", i)
+		cloneDeckUser(t, db, id)
+	}
+	exec(`UPDATE profiles SET show_me_option_id=(SELECT id FROM show_me_options WHERE code='everyone')`)
+	local := time.Now().In(time.FixedZone("WIB", 7*3600))
+	now := time.Date(local.Year(), local.Month(), local.Day(), 16, 59, 59, 0, time.UTC)
+	day := now.In(time.FixedZone("WIB", 7*3600)).Format("2006-01-02")
+	exec(`INSERT INTO candidate_daily_exposures(candidate_id,bucket_date,shown_today) SELECT user_id,$1,1 FROM profiles WHERE user_id<>$2 AND user_id NOT IN('33333333-3333-4333-8333-000000000010','33333333-3333-4333-8333-000000000011')`, day, alice)
+	exec(`INSERT INTO profile_interactions(actor_id,target_id,action,context_kind,context_id,created_at) VALUES('33333333-3333-4333-8333-000000000000',$1,'super_like','regular_deck',gen_random_uuid(),now())`, alice)
+	policy := deckPolicy()
+	policy.ShownDailyCap = 1
+	r := describe.Retriever{Query: discovery.CandidateQuery{DB: db, Policy: discovery.CandidatePolicy{DefaultRadiusKM: 25, MaxRadiusKM: 100, DefaultMinAge: 18, DefaultMaxAge: 80, LocationFreshDays: 30, IdleDays: 14}}, Profiles: &discovery.Handler{DB: db, Store: deckReadStore{}, Policy: policy, Now: func() time.Time { return now }}}
+	n := 100.0
+	c := describe.Criteria{Must: []describe.Criterion{{Field: "height_cm", Operator: "gte", Number: &n}}}
+	got, err := r.Retrieve(context.Background(), alice, c)
+	if err != nil || len(got.Results) != 2 {
+		t.Fatalf("cap/pin bypass/limit: %+v %v", got, err)
+	}
+	exec(`INSERT INTO discovery_exposures(viewer_id,candidate_id,bucket_date,delivered_at) VALUES($1,$2,$3,now())`, alice, bob, day)
+	got, err = r.Retrieve(context.Background(), alice, c)
+	if err != nil || len(got.Results) != 3 {
+		t.Fatalf("already exposed reload lost: %+v %v", got, err)
+	}
+	now = now.Add(time.Second)
+	got, err = r.Retrieve(context.Background(), alice, c)
+	if err != nil || len(got.Results) != 10 {
+		t.Fatalf("WIB cap did not reset: %+v %v", got, err)
 	}
 }

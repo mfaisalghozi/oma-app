@@ -60,7 +60,11 @@ func (r *Retriever) Retrieve(ctx context.Context, viewer string, c Criteria) (Re
 	}
 	radius = math.Min(radius, r.Query.Policy.MaxRadiusKM)
 	out.EffectiveRadiusKM = radius
-	candidates, err := r.Query.Filtered(ctx, viewer, radius, convert(c.Must), convert(c.Nice))
+	now := time.Now()
+	if r.Profiles.Now != nil {
+		now = r.Profiles.Now()
+	}
+	candidates, err := r.Query.Filtered(ctx, viewer, radius, convert(c.Must), convert(c.Nice), discovery.FilteredPolicy{Ranking: r.Profiles.Policy.Ranking, ShownDailyCap: r.Profiles.Policy.ShownDailyCap, Now: now})
 	if err != nil {
 		return out, err
 	}
@@ -81,7 +85,7 @@ func (r *Retriever) Retrieve(ctx context.Context, viewer string, c Criteria) (Re
 		if !ok || card.EvidenceSnapshot != candidate.Snapshot {
 			continue
 		}
-		evaluation, e := Evaluate(c, Evidence{ID: candidate.ID, Age: candidate.Age, HeightCM: candidate.HeightCM, DistanceKM: candidate.DistanceKM, Quality: candidate.Quality, Bio: candidate.Bio, Ambition: candidate.Ambition, Catalog: candidate.Catalog}, radius)
+		evaluation, e := Evaluate(c, Evidence{ID: candidate.ID, Age: candidate.Age, HeightCM: candidate.HeightCM, DistanceKM: candidate.DistanceKM, Quality: candidate.Quality, ReplyRate: &candidate.ReplyRate, IdleDays: candidate.IdleDays, Bio: candidate.Bio, Ambition: candidate.Ambition, Catalog: candidate.Catalog}, radius, r.Profiles.Policy.Ranking)
 		if e != nil {
 			return out, e
 		}
