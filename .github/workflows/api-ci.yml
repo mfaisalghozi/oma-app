@@ -1,0 +1,56 @@
+name: Go API CI
+on:
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'libs/contracts/**'
+      - '.github/workflows/api-ci.yml'
+  push:
+    branches: ['feature/DSC-BE-*', 'feature/DSB-BE-*']
+    paths:
+      - 'apps/api/**'
+      - 'libs/contracts/**'
+      - '.github/workflows/api-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    working-directory: apps/api
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: oma_test
+          POSTGRES_DB: oma_test
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:oma_test@127.0.0.1:55432/oma_test?sslmode=disable
+      GIN_MODE: release
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - name: Check formatting
+        run: test -z "$(gofmt -l cmd internal migrations)"
+      - name: Vet
+        run: go vet ./...
+      - name: Build API and worker
+        run: go build ./...
+      - name: Race, unit and PostGIS integration tests
+        run: go test -race -tags integration ./...
