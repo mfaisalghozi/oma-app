@@ -15,6 +15,7 @@ CREATE TABLE deck_cache (
  policy_version TEXT NOT NULL,ranking_version TEXT NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),expires_at TIMESTAMPTZ NOT NULL,status TEXT NOT NULL DEFAULT 'active' CHECK(status IN('active','expired')),
  UNIQUE(viewer_id,generation)
 );
+CREATE INDEX deck_cache_retention ON deck_cache(created_at,id);
 CREATE UNIQUE INDEX deck_cache_one_active ON deck_cache(viewer_id) WHERE status='active';
 CREATE TABLE deck_cache_cards (
  batch_id UUID NOT NULL REFERENCES deck_cache(id),candidate_id UUID NOT NULL REFERENCES accounts(user_id),position INT NOT NULL CHECK(position BETWEEN 1 AND 20),selection_bucket TEXT NOT NULL,bypass_reason TEXT,action_id UUID,delivered_at TIMESTAMPTZ,
