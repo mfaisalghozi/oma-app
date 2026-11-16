@@ -31,7 +31,12 @@ Describe actions must call `CandidateQuery.VisibleRadiusTx` to retain that scope
 ordinary `Candidates`/`VisibleTx` zero retains stored/default radius semantics.
 
 Ranking is deterministic: 0.6 Nice relevance (unknown = zero; no Nice = one),
-0.25 within-segment quality percentile, 0.15 normalized distance. Ties use distance
+0.25 quality, 0.15 distance factor. Quality is the within-segment percentile
+multiplied by `(reply_floor+(1-reply_floor)*reply_rate)*2^(-idle_days/half_life)`;
+the configured defaults retain the specified reply floor 0.4 and five-day half-life.
+The distance factor is `1-0.5*distance/radius` (same-point zero radius is one).
+SQL ranks before LIMIT and pure evaluation uses the same `Profiles.Policy.Ranking`
+inputs. Ties use distance
 and profile ID. Quality joins the viewer-gender:target-gender segment only.
 Qualifying ghosters (at least ten completed matches, reply rate below 0.2) are
 excluded. The SQL ranks the filtered universe before taking ten; it does not
@@ -45,8 +50,14 @@ An internal snapshot covers profile revisions, evaluated age, both location
 versions, and hobby/relationship relations. The projection reads its snapshot
 with the public card; retrieval drops changed candidates before emitting their
 reasons. Snapshot metadata is excluded from JSON. SQL and pure evaluation share
-numeric tolerance policy and ranking weights; eligibility joins and predicates
+numeric tolerance policy, distance factor and ranking weights; eligibility joins and predicates
 use one explicit composition helper.
+
+Describe applies the shared candidate daily exposure cap before LIMIT. A candidate
+already delivered to the same viewer in the current WIB day remains eligible for
+reload; incoming priority never bypasses the Describe cap. `FilteredPolicy` gets
+the cap, ranking policy and clock from the profile handler. DSB-BE-04 owns the
+atomic delivery increment and the final cap recheck for racing deliveries.
 
 The branch contains the real DSC-BE-03 pair-exclusion view and DSC-BE-05 quality
 producer. Retrieval acceptance uses source interactions/events, a real score
@@ -63,7 +74,10 @@ authored hobby aliases, wider close radius/global maximum, reciprocal age,
 blocking, stable ties and public projection. Additional fixtures verify source
 quality ranking, irreversible pass/retained-match exclusions, true-zero radius
 retrieval/action checks, and deterministic profile height/bio/hobby/location edits
-between filtering and projection using a database lock barrier. After merging the prerequisite,
+between filtering and projection using a database lock barrier. Worked numeric
+examples verify reply/recency quality and the distance coefficient; source-backed
+ranking fixtures verify reply and recency before LIMIT. Cap fixtures cover a pool
+larger than ten, reload deduplication, no priority bypass and WIB midnight. After merging the prerequisite,
 `go vet ./...`, `go build ./...`, `go test ./...`, and
 `GIN_MODE=release TEST_DATABASE_URL=<disposable PostGIS> go test -race -tags integration ./...`
 all pass. These are local

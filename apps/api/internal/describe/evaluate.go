@@ -14,6 +14,8 @@ type Evidence struct {
 	ID                  string
 	Age, HeightCM       int
 	DistanceKM, Quality float64
+	ReplyRate           *float64
+	IdleDays            float64
 	Bio, Ambition       string
 	Catalog             map[string][]string
 }
@@ -37,7 +39,7 @@ type Evaluation struct {
 	Score       float64               `json:"-"`
 }
 
-func Evaluate(c Criteria, e Evidence, maxDistanceKM float64) (Evaluation, error) {
+func Evaluate(c Criteria, e Evidence, maxDistanceKM float64, ranking ...discovery.RankingPolicy) (Evaluation, error) {
 	out := Evaluation{Tier: "exact", Total: len(c.Must) + len(c.Nice), Violations: []Violation{}}
 	if len(c.Must)+len(c.Nice) == 0 {
 		return out, ErrNoSearchableCriteria
@@ -90,7 +92,24 @@ func Evaluate(c Criteria, e Evidence, maxDistanceKM float64) (Evaluation, error)
 	if len(c.Nice) > 0 {
 		relevance = float64(niceMatched) / float64(len(c.Nice))
 	}
-	out.Score = discovery.DescribeRelevanceWeight*relevance + discovery.DescribeQualityWeight*e.Quality + discovery.DescribeDistanceWeight*math.Max(0, 1-e.DistanceKM/math.Max(maxDistanceKM, 0.001))
+
+	policy := discovery.RankingPolicy{ReplyFloor: .4, RecencyHalfLifeDays: 5}
+	if len(ranking) > 1 {
+		return Evaluation{}, ErrInvalidCriteria
+	}
+	if len(ranking) == 1 {
+		policy = ranking[0]
+	}
+	reply := .75
+	if e.ReplyRate != nil {
+		reply = *e.ReplyRate
+	}
+	quality, err := discovery.QualityScore(e.Quality, reply, e.IdleDays, 0, 1, policy)
+	if err != nil {
+		return Evaluation{}, ErrInvalidCriteria
+	}
+	out.Score = discovery.DescribeScore(relevance, quality, e.DistanceKM, maxDistanceKM)
+
 	out.Reason = fmt.Sprintf("Matched %d of %d criteria", out.Matched, out.Total)
 	if len(reasons) > 0 {
 		out.Reason += ": " + strings.Join(reasons, ", ")

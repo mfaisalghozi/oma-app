@@ -3,6 +3,7 @@ package describe_test
 import (
 	"math"
 	"oma/apps/api/internal/describe"
+	"oma/apps/api/internal/discovery"
 	"testing"
 )
 
@@ -36,7 +37,7 @@ func TestEvaluateRejectsAllUnsupported(t *testing.T) {
 	}
 }
 func TestEvaluateNiceOnlyRelevanceAndUnknownDenominator(t *testing.T) {
-	got, err := describe.Evaluate(describe.Criteria{Must: []describe.Criterion{{Field: "height_cm", Operator: "gte", Number: num(180)}}, Nice: []describe.Criterion{{Field: "bio", Operator: "contains", Text: "hiking"}, {Field: "religion", Operator: "eq", CatalogID: "missing"}}}, describe.Evidence{HeightCM: 180, Bio: "hiking", DistanceKM: 0, Quality: 1}, 100)
+	got, err := describe.Evaluate(describe.Criteria{Must: []describe.Criterion{{Field: "height_cm", Operator: "gte", Number: num(180)}}, Nice: []describe.Criterion{{Field: "bio", Operator: "contains", Text: "hiking"}, {Field: "religion", Operator: "eq", CatalogID: "missing"}}}, describe.Evidence{HeightCM: 180, Bio: "hiking", DistanceKM: 0, Quality: 1, ReplyRate: num(1)}, 100)
 	if err != nil || got.Matched != 2 || got.Total != 3 || math.Abs(got.Score-0.7) > 1e-9 {
 		t.Fatalf("got %+v %v", got, err)
 	}
@@ -76,5 +77,23 @@ func TestEvaluateNumericToleranceBoundaries(t *testing.T) {
 		if err != nil || got.Tier != tc.tier {
 			t.Fatalf("%s=%v: %+v %v", tc.field, tc.value, got, err)
 		}
+	}
+}
+
+func TestEvaluateUsesSpecifiedDistanceFactor(t *testing.T) {
+	c := describe.Criteria{Must: []describe.Criterion{{Field: "height_cm", Operator: "gte", Number: num(180)}}}
+	got, err := describe.Evaluate(c, describe.Evidence{HeightCM: 180, Quality: .2, ReplyRate: num(1), DistanceKM: 50}, 100)
+	// Relevance 1, quality .2 and half-radius distance factor .75: .6+.05+.1125.
+	if err != nil || math.Abs(got.Score-.7625) > 1e-9 {
+		t.Fatalf("worked distance score: %+v %v", got, err)
+	}
+}
+
+func TestEvaluateUsesReplyAndRecencyQualityFactors(t *testing.T) {
+	c := describe.Criteria{Must: []describe.Criterion{{Field: "height_cm", Operator: "gte", Number: num(180)}}}
+	got, err := describe.Evaluate(c, describe.Evidence{HeightCM: 180, Quality: .8, ReplyRate: num(.5), IdleDays: 5}, 100, discovery.RankingPolicy{ReplyFloor: .4, RecencyHalfLifeDays: 5})
+	// Quality .8*.7*.5=.28; relevance 1 and distance 0 give .6+.07+.15.
+	if err != nil || math.Abs(got.Score-.82) > 1e-9 {
+		t.Fatalf("worked reply/recency score: %+v %v", got, err)
 	}
 }
