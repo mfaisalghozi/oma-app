@@ -1,0 +1,20 @@
+# DSC-BE-03 — Swipe actions and matching
+
+Branch: `feature/DSC-BE-03-swipe-actions`.
+Dependencies: DSC-BE-02 `ae686c1` (and its DSC01/00 ancestry), plus an explicit merge of DSC-BE-04 `ee9d35f` (fixed WIB grants and transactional debit primitives). The quota dependency is required before exposing ordinary likes; this ticket never runs an unlimited interim like endpoint. The prerequisite merge resolves only the two compatible `.env.example` additions.
+
+Implemented:
+
+- `POST /v1/discovery/actions` accepts `pass`, `like`, `super_like`, UUID `Idempotency-Key`, `target_id`, `context_id`, and `context_kind: regular_deck`.
+- One irreversible directed decision per actor/target. Actor-scoped keys hash the canonical request. Same-action requests with new keys alias the original decision and record the new hash; changed payload reuse and changed decisions conflict. Replays preserve the original response and never debit or emit another event.
+- Sorted account locks serialize reciprocal decisions, quota use and separate wallet debits. Like consumes exactly one credit through DSC04 `DebitTx`; pass is free; superlike consumes exactly one separately funded balance and zero ordinary likes. There is no client funding/PRO input and no invented recurring superlike grant.
+- Every fresh action validates the viewer-owned, delivered, unexpired deck and canonical current hard eligibility. Foreign/blocked/restricted candidates receive generic 404; stale owned contexts receive 409. Actions never increment `shown_today`.
+- Reciprocal positive decisions create one canonical unique match. Conversation status remains `pending` with null conversation ID until a real chat integration supplies the handoff; this ticket does not claim to create a usable conversation.
+- The same action transaction inserts one append-only `swipe_events` source record. No hot ranking projection row is updated. DSC05 must consume with per-event receipts because sequence allocation does not guarantee commit order.
+- Pair exclusion and incoming-superlike priority views now read applied actions and canonical matches. DSC02 retains authoritative priority TTL and delivered-priority history checks.
+- `/v1/me/usage` mounts DSC04 behind authenticated account and Discovery gates. Startup validates server environment PRO settings. Deck PRO mix comes from the same limits service.
+- `Handler.DescribeContext` is an optional transaction validator seam. Describe contexts are rejected until an authoritative Describe implementation installs it; no nonexistent Describe tables or endpoints are assumed.
+
+Validation: HTTP tests against disposable PostgreSQL/PostGIS cover pass/replay/new-key alias conflicts, reciprocal like/superlike race and truthful pending handoff, last ordinary-like credit and last superlike balance races, free pass at exhaustion, no ordinary-like consumption for superlikes, and foreign/stale/blocked/restricted context rejection. `go test -race -tags integration ./... -count=1`, `go vet ./...`, and `go build ./...` all passed on the standalone branch with merged prerequisites. `graphify update .` completed; generated local graph artifacts are excluded from the commit. Linux Flutter/device checks are irrelevant to this Go-only change.
+
+Excluded: Featured, comment likes, moderation, billing, refunds, webhook processing, recurring superlike grants, Describe retrieval/logging and score projection. Trusted balance funding can be supplied by a future owning domain; its starting balance is zero.

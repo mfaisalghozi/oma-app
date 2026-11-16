@@ -1228,6 +1228,85 @@ paths:
         "403": {description: Account, onboarding, consent or location gate failed}
         "409": {description: Stale cursor context}
         "503": {description: Discovery policy or storage unavailable}
+  /v1/discovery/actions:
+    post:
+      tags: [Discovery]
+      operationId: applyDiscoveryAction
+      summary: Commit one irreversible decision for an eligible delivered candidate
+      security: [{supabaseJWT: []}]
+      parameters:
+        - {in: header, name: Idempotency-Key, required: true, schema: {type: string, format: uuid}, description: Scoped to the authenticated actor. Reusing a key with a different canonical request conflicts.}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_id, context_id, context_kind, action]
+              properties:
+                target_id: {type: string, format: uuid}
+                context_id: {type: string, format: uuid}
+                context_kind: {type: string, enum: [regular_deck]}
+                action: {type: string, enum: [pass, like, super_like]}
+      responses:
+        "200":
+          description: Original committed decision. Same-action retries under new keys alias the original decision without charging again. Pass is free; super_like debits its separate funded balance. Actions never increment exposure counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [action_id, action, match]
+                    properties:
+                      action_id: {type: string, format: uuid}
+                      action: {type: string, enum: [pass, like, super_like]}
+                      match:
+                        type: object
+                        nullable: true
+                        required: [id, conversation_status, conversation_id]
+                        properties:
+                          id: {type: string, format: uuid}
+                          conversation_status: {type: string, enum: [pending, ready]}
+                          conversation_id: {type: string, format: uuid, nullable: true}
+        "400": {description: Invalid action or idempotency key}
+        "401": {description: Authentication required}
+        "403": {description: Actor eligibility gate failed}
+        "404": {description: Unavailable candidate or foreign context}
+        "409": {description: Irreversible decision conflict, reused key conflict or stale context}
+        "429": {description: LIKE_LIMIT_REACHED or SUPER_LIKE_BALANCE_EMPTY}
+        "503": {description: Discovery policy or limits unavailable}
+  /v1/me/usage:
+    get:
+      tags: [Discovery]
+      operationId: getDailyUsage
+      summary: Read fixed WIB daily grants and remaining usage for the authenticated actor
+      security: [{supabaseJWT: []}]
+      responses:
+        "200":
+          description: Likes have 15 base plus 15 at full profile completion. Describe searches have 3 free or 20 PRO. PRO comes only from the validated server development allowlist until billing exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [bucket, resets_at, pro, profile_complete, likes, searches]
+                    properties:
+                      bucket: {type: string, format: date}
+                      resets_at: {type: string, format: date-time}
+                      pro: {type: boolean}
+                      profile_complete: {type: boolean}
+                      likes: {$ref: "#/components/schemas/DailyBalance"}
+                      searches: {$ref: "#/components/schemas/DailyBalance"}
+        "400": {description: Query parameters are not accepted}
+        "401": {description: Authentication required}
+        "403": {description: Actor eligibility gate failed}
   /v1/discovery/candidates/{candidate_id}:
     get:
       tags: [Discovery]
@@ -1803,3 +1882,11 @@ components:
         id: {type: string, format: uuid}
         code: {type: string}
         label: {type: string}
+    DailyBalance:
+      type: object
+      required: [limit, used, reserved, available]
+      properties:
+        limit: {type: integer, minimum: 0}
+        used: {type: integer, minimum: 0}
+        reserved: {type: integer, minimum: 0}
+        available: {type: integer, minimum: 0}

@@ -213,6 +213,13 @@ func (h *Handler) ensureBatch(ctx context.Context, viewer, token string) (batch,
 		}
 	}
 	pro := h.IsPro != nil && h.IsPro(viewer)
+	if h.Limits != nil {
+		u, e := h.Limits.UsageTx(ctx, tx, viewer, h.now())
+		if e != nil {
+			return b, 0, e
+		}
+		pro = u.PRO
+	}
 	deck := AssembleDeck(pool, h.Policy, pro)
 	b.Expires = h.now().Add(30 * time.Minute)
 	if err = tx.QueryRowContext(ctx, `INSERT INTO deck_cache(viewer_id,generation,location_version,preference_revision,location,policy_version,ranking_version,expires_at,exposure_bucket_date) SELECT $1,$2,$3,$4,location,$5,$6,$7,$8 FROM user_locations WHERE user_id=$1 RETURNING id`, viewer, b.Generation, lv, pv, h.policyVersion(), h.Policy.Ranking.Version, b.Expires, h.bucketDay()).Scan(&b.ID); err != nil {
