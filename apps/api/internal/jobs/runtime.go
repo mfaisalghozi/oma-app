@@ -91,23 +91,27 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	return err
 }
 func (r *Runtime) Reconcile(ctx context.Context) error {
+	var failures []error
+	// Lease cleanup must run even when an unrelated queue insertion fails.
+	if r.options.Reconcile != nil {
+		if err := r.options.Reconcile(ctx); err != nil {
+			failures = append(failures, err)
+		}
+	}
 	if _, err := r.Client.Insert(ctx, ScoreProjectArgs{}, uniqueOpts()); err != nil {
-		return err
+		failures = append(failures, err)
 	}
 	due, err := r.scores.NightlyDue(ctx, time.Now().UTC())
 	if err != nil {
-		return err
-	}
-	if due {
+		failures = append(failures, err)
+	} else if due {
 		if _, err = r.Client.Insert(ctx, NightlyArgs{}, uniqueOpts()); err != nil {
-			return err
+			failures = append(failures, err)
 		}
 	}
-	if r.options.Reconcile != nil {
-		return r.options.Reconcile(ctx)
-	}
-	return nil
+	return errors.Join(failures...)
 }
+
 func (r *Runtime) Start(ctx context.Context) error {
 	if err := r.Client.Start(ctx); err != nil {
 		return err

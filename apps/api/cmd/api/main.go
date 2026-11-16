@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"oma/apps/api/internal/api"
+	"oma/apps/api/internal/describe"
 	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/platform/auth"
 	"oma/apps/api/internal/platform/config"
@@ -48,11 +49,22 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var provider describe.JSONProvider
+	if key := os.Getenv("BEDROCK_API_KEY"); key != "" {
+		provider, err = describe.NewBedrock(describe.BedrockConfig{APIKey: key})
+		if err != nil {
+			log.Fatal("invalid Describe provider configuration")
+		}
+	}
+	searches, err := describe.NewService(boot, db, store, policy, limitService, provider)
+	if err != nil {
+		log.Fatal("invalid Describe configuration")
+	}
 	addr := os.Getenv("API_ADDR")
 	if addr == "" {
 		addr = ":8080"
 	}
-	server := &http.Server{Addr: addr, Handler: api.NewWithDiscoveryServices(db, verifier, store, policy, limitService), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
+	server := &http.Server{Addr: addr, Handler: api.NewWithDescribeServices(db, verifier, store, policy, limitService, searches), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
 	drained := make(chan struct{})
 	go func() {
 		defer close(drained)

@@ -321,3 +321,21 @@ WIB with startup/60-second catch-up reconciliation. SIGTERM allows a 30-second
 drain. Phone verification and reply metadata require trusted Auth/Chat producer
 integration; absent facts retain fail-closed weighting and the reply prior.
 See [DSC-BE-05 operations and acceptance](docs/tickets/DSC-BE-05.md).
+
+Describe creation (`POST /v1/describe/searches`) requires a configured
+`DISCOVERY_POLICY_FILE` and server-only `BEDROCK_API_KEY`. Missing provider
+configuration returns 503 without reserving quota or calling a model. Credentials
+and live model evaluation remain unavailable; fixture tests do not establish live
+model quality, cost or latency. API and worker must use the same policy, provider,
+trusted development PRO settings and private photo storage configuration.
+
+Apply application migrations and the explicit River migrations before startup.
+Search creation commits its owned query log, original WIB reservation and typed
+River job together. The worker reconciles pending searches and expired leases on
+startup and every 60 seconds. Successful searches, including zero results, consume
+one of three free or twenty PRO daily searches. Provider, parsing, unsupported-only
+query, retrieval and expired-worker failures release the original reservation.
+`GET /v1/describe/searches/latest` returns the last successful search; newer failures
+and quota exhaustion preserve it. Saved reads and Describe actions use the stored
+effective radius, recheck current eligibility, and sign fresh photos. Changed
+profiles retain current cards while old reasons and matching evidence are hidden.

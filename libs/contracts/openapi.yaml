@@ -1374,6 +1374,129 @@ paths:
         "403": {description: Account, onboarding or consent gate failed}
         "422": {description: Invalid preferences or minimum exceeds maximum}
         "503": {description: Discovery policy unavailable}
+  /v1/describe/searches:
+    post:
+      operationId: createDescribeSearch
+      summary: Reserve one search and durably enqueue text-only parsing and retrieval
+      security: [{supabaseJWT: []}]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 200}
+          description: Case-sensitive opaque key scoped to the authenticated owner. Replays require the same query and retry_of.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [query]
+              properties:
+                query: {type: string, minLength: 1, maxLength: 500}
+                retry_of: {type: string, format: uuid, description: Optional owned failed search; a new key creates a new attempt.}
+      responses:
+        '202':
+          description: Search, original WIB quota reservation and River job committed atomically
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DescribeSearchEnvelope'}
+        '200':
+          description: Matching idempotent replay
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DescribeSearchEnvelope'}
+        '400': {description: Invalid query, key, JSON or foreign/nonfailed retry_of}
+        '401': {description: Authentication required}
+        '403': {description: Current discovery eligibility required}
+        '409': {description: IDEMPOTENCY_CONFLICT or SEARCH_IN_PROGRESS}
+        '429': {description: SEARCH_QUOTA_EXHAUSTED; prior successful results remain available}
+        '503': {description: DESCRIBE_NOT_CONFIGURED; no reservation or provider call}
+  /v1/describe/searches/latest:
+    get:
+      operationId: latestSuccessfulDescribeSearch
+      summary: Return the owned last successful search, including a successful empty search
+      description: A failed newer attempt never replaces the last successful search. This permits recovery after failure or quota exhaustion.
+      security: [{supabaseJWT: []}]
+      responses:
+        '200':
+          description: Last successful owned search
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DescribeSearchEnvelope'}
+        '404': {description: No owned successful search}
+  /v1/describe/searches/{search_id}:
+    parameters:
+      - in: path
+        name: search_id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: describeSearchStatus
+      security: [{supabaseJWT: []}]
+      responses:
+        '200':
+          description: Owned search status and protected query rewrite
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DescribeSearchEnvelope'}
+        '404': {description: Missing or foreign search}
+  /v1/describe/searches/{search_id}/results:
+    parameters:
+      - in: path
+        name: search_id
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: describeSavedResults
+      description: Recheck current canonical eligibility at the persisted effective radius and sign fresh photos. A changed profile stays visible if eligible, with profile_updated true, empty criterion_evaluations, and no stale reason/count/tier/violations.
+      security: [{supabaseJWT: []}]
+      responses:
+        '200':
+          description: Owned successful saved results; valid empty arrays consume one search
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [search_id, results, criteria, parser_version, ranking_policy_version, policy_version]
+                    properties:
+                      search_id: {type: string, format: uuid}
+                      criteria: {$ref: '#/components/schemas/DescribeCriteria'}
+                      parser_version: {type: string}
+                      ranking_policy_version: {type: string}
+                      policy_version: {type: string}
+                      results:
+                        type: array
+                        maxItems: 10
+                        items:
+                          type: object
+                          required: [candidate, ordinal, profile_updated, criterion_evaluations]
+                          properties:
+                            candidate: {$ref: '#/components/schemas/DiscoveryCard'}
+                            ordinal: {type: integer, minimum: 1, maximum: 10}
+                            profile_updated: {type: boolean}
+                            tier: {type: string, enum: [exact, close]}
+                            matched: {type: integer, minimum: 0}
+                            total: {type: integer, minimum: 0}
+                            reason: {type: string}
+                            violated_criteria: {type: array, items: {type: object}}
+                            criterion_evaluations:
+                              type: array
+                              items:
+                                type: object
+                                required: [field, mandatory, status]
+                                properties:
+                                  field: {type: string}
+                                  mandatory: {type: boolean}
+                                  status: {type: string, enum: [matched, near_miss, not_matched]}
+                                  evidence: {type: string, description: Explicit authored bio or ambition term only.}
+        '404': {description: Missing or foreign search}
+        '409': {description: SEARCH_NOT_SUCCESSFUL}
 components:
   securitySchemes:
     supabaseJWT:
@@ -1895,3 +2018,33 @@ components:
         used: {type: integer, minimum: 0}
         reserved: {type: integer, minimum: 0}
         available: {type: integer, minimum: 0}
+
+    DescribeSearchEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [search_id, status, criteria, error_code, created_at, poll_after_seconds, parser_version, ranking_policy_version, policy_version]
+          properties:
+            search_id: {type: string, format: uuid}
+            status: {type: string, enum: [queued, parsing, retrieving, ranking, succeeded, failed]}
+            criteria: {$ref: '#/components/schemas/DescribeCriteria'}
+            error_code: {type: string, nullable: true, enum: [SEARCH_FAILED, INVALID_SEARCH_QUERY]}
+            created_at: {type: string, format: date-time}
+            completed_at: {type: string, format: date-time}
+            poll_after_seconds: {type: integer}
+            parser_version: {type: string}
+            ranking_policy_version: {type: string}
+            policy_version: {type: string}
+    DescribeCriteria:
+      type: object
+      nullable: true
+      properties:
+        version: {type: string, enum: [v1]}
+        original_query: {type: string}
+        rewrite_id: {type: string}
+        translation_en: {type: string}
+        must: {type: array, items: {type: object}}
+        nice: {type: array, items: {type: object}}
+        not_searchable: {type: array, items: {type: object}}

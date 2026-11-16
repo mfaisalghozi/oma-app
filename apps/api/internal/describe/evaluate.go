@@ -20,13 +20,20 @@ type Violation struct {
 	Criterion Criterion `json:"criterion"`
 	Deviation float64   `json:"deviation"`
 }
+type CriterionEvaluation struct {
+	Field     string `json:"field"`
+	Mandatory bool   `json:"mandatory"`
+	Status    string `json:"status"`
+	Evidence  string `json:"evidence,omitempty"`
+}
 type Evaluation struct {
-	Tier       string      `json:"tier"`
-	Matched    int         `json:"matched"`
-	Total      int         `json:"total"`
-	Reason     string      `json:"reason"`
-	Violations []Violation `json:"violated_criteria"`
-	Score      float64     `json:"-"`
+	Evaluations []CriterionEvaluation `json:"criterion_evaluations"`
+	Tier        string                `json:"tier"`
+	Matched     int                   `json:"matched"`
+	Total       int                   `json:"total"`
+	Reason      string                `json:"reason"`
+	Violations  []Violation           `json:"violated_criteria"`
+	Score       float64               `json:"-"`
 }
 
 func Evaluate(c Criteria, e Evidence, maxDistanceKM float64) (Evaluation, error) {
@@ -48,6 +55,17 @@ func Evaluate(c Criteria, e Evidence, maxDistanceKM float64) (Evaluation, error)
 				return Evaluation{}, ErrInvalidCriteria
 			}
 			matched, deviation, tolerance := match(criterion, e)
+			status := "not_matched"
+			if matched {
+				status = "matched"
+			} else if group == 0 && tolerance > 0 && deviation <= tolerance {
+				status = "near_miss"
+			}
+			evidence := ""
+			if matched && (criterion.Field == "bio" || criterion.Field == "ambition") {
+				evidence = criterion.Text
+			}
+			out.Evaluations = append(out.Evaluations, CriterionEvaluation{Field: criterion.Field, Mandatory: group == 0, Status: status, Evidence: evidence})
 			if matched {
 				out.Matched++
 				if group == 1 {

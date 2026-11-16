@@ -7,6 +7,7 @@ import (
 
 	"net/http"
 	"oma/apps/api/internal/account"
+	"oma/apps/api/internal/describe"
 	"oma/apps/api/internal/discovery"
 	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/masterdata"
@@ -35,6 +36,10 @@ func NewWithDiscoveryPolicy(db *sql.DB, verifier auth.Verifier, store storage.St
 }
 
 func NewWithDiscoveryServices(db *sql.DB, verifier auth.Verifier, store storage.Store, policy discovery.Policy, service *limits.Service) http.Handler {
+	search, _ := describe.NewService(context.Background(), db, store, policy, service, nil)
+	return NewWithDescribeServices(db, verifier, store, policy, service, search)
+}
+func NewWithDescribeServices(db *sql.DB, verifier auth.Verifier, store storage.Store, policy discovery.Policy, service *limits.Service, search *describe.Service) http.Handler {
 	router := gin.New()
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = false
@@ -78,6 +83,10 @@ func NewWithDiscoveryServices(db *sql.DB, verifier auth.Verifier, store storage.
 	)
 
 	deck := &discovery.Handler{DB: db, Store: store, Policy: policy, Limits: service}
+	if search == nil {
+		search = &describe.Service{DB: db}
+	}
+	deck.DescribeContext = search.ContextTx
 	photos := &media.Handler{DB: db, Store: store}
 	profiles := &profile.Handler{DB: db, Store: store}
 	consents := &profile.Consents{DB: db}
@@ -98,6 +107,13 @@ func NewWithDiscoveryServices(db *sql.DB, verifier auth.Verifier, store storage.
 			h(w, r)
 		})))
 	}
+	describeGuard := func(h http.HandlerFunc) http.Handler {
+		return guard((&discovery.Eligibility{DB: db}).Guard(h).ServeHTTP)
+	}
+	route("POST", "/v1/describe/searches", describeGuard(search.Create))
+	route("GET", "/v1/describe/searches/latest", describeGuard(search.Latest))
+	route("GET", "/v1/describe/searches/:search_id", describeGuard(search.Status))
+	route("GET", "/v1/describe/searches/:search_id/results", describeGuard(search.Results))
 	route("PATCH", "/v1/me/discovery-preferences", guard(deck.Preferences))
 	route("GET", "/v1/discovery", guard(deck.Deck))
 	route("POST", "/v1/discovery/actions", guard(deck.Action))
