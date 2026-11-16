@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"oma/apps/api/internal/discovery"
 	"oma/apps/api/internal/limits"
+	"oma/apps/api/internal/platform/auth"
 	"strings"
 	"testing"
 	"time"
@@ -249,4 +251,71 @@ func TestSwipeReplayRefreshesRetainedMatchAndAcceptsBoundedOpaqueKeys(t *testing
 		}
 	}
 	swipe(t, h, "alice", strings.Repeat("x", 201), body, 422)
+}
+
+func TestSwipeExpiredKeyCreatesFreshOperationButPreservesPermanentPair(t *testing.T) {
+	db, h := deckSetup(t)
+	third := "33333333-3333-4333-8333-333333333333"
+	cloneDeckUser(t, db, third)
+	deck := call(t, h, "GET", "/v1/discovery", "alice", "", 200)["data"].(map[string]any)["context_id"].(string)
+	body := swipeBody(bob, deck, "like")
+	first := swipe(t, h, "alice", "CaseSensitive-Key", body, 200)["data"].(map[string]any)
+	swipe(t, h, "alice", "CaseSensitive-Key", swipeBody(third, deck, "like"), 409)
+	if _, err := db.Exec(`UPDATE swipe_requests SET expires_at=now()-interval '1 second' WHERE actor_id=$1`, alice); err != nil {
+		t.Fatal(err)
+	}
+	second := swipe(t, h, "alice", "CaseSensitive-Key", swipeBody(third, deck, "like"), 200)["data"].(map[string]any)
+	if first["action_id"] == second["action_id"] {
+		t.Fatal("expired key reused permanent operation")
+	}
+	old := swipe(t, h, "alice", "caseSensitive-Key", body, 200)["data"].(map[string]any)
+	if old["action_id"] != first["action_id"] {
+		t.Fatal("old pair changed after expiry")
+	}
+	swipe(t, h, "alice", "caseSensitive-Key", swipeBody(third, deck, "like"), 409)
+	if _, err := db.Exec(`UPDATE swipe_requests SET expires_at=now()-interval '1 second' WHERE actor_id=$1`, alice); err != nil {
+		t.Fatal(err)
+	}
+	old = swipe(t, h, "alice", "CaseSensitive-Key", body, 200)["data"].(map[string]any)
+	if old["action_id"] != first["action_id"] {
+		t.Fatal("expired key changed irreversible pair")
+	}
+	usage := call(t, h, "GET", "/v1/me/usage", "alice", "", 200)["data"].(map[string]any)
+	if used := usage["likes"].(map[string]any)["used"]; used != float64(2) {
+		t.Fatalf("used %v want 2", used)
+	}
+}
+
+func TestSwipeReplayWindowCrossesWIBMidnightWithoutNewDebit(t *testing.T) {
+	db, _ := deckSetup(t)
+	service, err := limits.NewService(limits.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	today := time.Now().UTC()
+	now := time.Date(today.Year(), today.Month(), today.Day(), 16, 59, 59, 0, time.UTC)
+	handler := &discovery.Handler{DB: db, Store: deckReadStore{}, Policy: deckPolicy(), Limits: service, Now: func() time.Time { return now }}
+	deckHTTP := auth.Middleware(uuidIdentity{}, http.HandlerFunc(handler.Deck))
+	actionHTTP := auth.Middleware(uuidIdentity{}, http.HandlerFunc(handler.Action))
+	deck := call(t, deckHTTP, "GET", "/v1/discovery", alice, "", 200)["data"].(map[string]any)["context_id"].(string)
+	body := swipeBody(bob, deck, "like")
+	first := swipe(t, actionHTTP, alice, "midnight-key", body, 200)["data"].(map[string]any)
+	now = now.Add(2 * time.Second)
+	replay := swipe(t, actionHTTP, alice, "midnight-key", body, 200)["data"].(map[string]any)
+	if first["action_id"] != replay["action_id"] {
+		t.Fatal("WIB midnight expired a 24-hour key")
+	}
+	swipe(t, actionHTTP, alice, "midnight-key", swipeBody(bob, deck, "pass"), 409)
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	usage, err := service.UsageTx(context.Background(), tx, alice, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if usage.Likes.Used != 0 {
+		t.Fatalf("midnight replay charged new bucket: %d", usage.Likes.Used)
+	}
 }

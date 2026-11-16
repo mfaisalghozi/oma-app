@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/platform/auth"
@@ -64,6 +65,8 @@ func (h *Handler) Action(w http.ResponseWriter, r *http.Request) {
 func conflict() error { return &httpapi.Error{Status: 409, Code: "ACTION_CONFLICT"} }
 func (h *Handler) applyAction(ctx context.Context, actor, key string, req ActionRequest) (ActionResult, error) {
 	var out ActionResult
+	keySum := sha256.Sum256([]byte(key))
+	key = hex.EncodeToString(keySum[:])
 	tx, err := h.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return out, err
@@ -81,12 +84,16 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 	if err = check(ctx, tx, actor); err != nil {
 		return out, err
 	}
+	now := h.now()
 	raw, _ := json.Marshal(req)
 	sum := sha256.Sum256(raw)
 	hash := hex.EncodeToString(sum[:])
+	if _, err = tx.ExecContext(ctx, `DELETE FROM swipe_requests WHERE actor_id=$1 AND idempotency_key=$2 AND expires_at<=$3`, actor, key, now); err != nil {
+		return out, err
+	}
 	var oldHash string
 	var response []byte
-	err = tx.QueryRowContext(ctx, `SELECT r.payload_hash,i.response FROM swipe_requests r JOIN profile_interactions i ON i.id=r.action_id WHERE r.actor_id=$1 AND r.idempotency_key=$2`, actor, key).Scan(&oldHash, &response)
+	err = tx.QueryRowContext(ctx, `SELECT r.payload_hash,i.response FROM swipe_requests r JOIN profile_interactions i ON i.id=r.action_id WHERE r.actor_id=$1 AND r.idempotency_key=$2 AND r.expires_at>$3`, actor, key, now).Scan(&oldHash, &response)
 	if err == nil {
 		if oldHash != hash {
 			return out, conflict()
@@ -107,7 +114,7 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 		if action != req.Kind {
 			return out, conflict()
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO swipe_requests(actor_id,idempotency_key,payload_hash,action_id) VALUES($1,$2,$3,$4)`, actor, key, hash, out.ID); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO swipe_requests(actor_id,idempotency_key,payload_hash,action_id,expires_at) VALUES($1,$2,$3,$4,$5)`, actor, key, hash, out.ID, now.Add(24*time.Hour)); err != nil {
 			return out, err
 		}
 		if err = json.Unmarshal(response, &out); err != nil {
@@ -129,11 +136,14 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 	if err != nil {
 		return out, err
 	}
+	if err = tx.QueryRowContext(ctx, `SELECT gen_random_uuid()`).Scan(&out.ID); err != nil {
+		return out, err
+	}
 	if req.Kind == "like" {
 		if h.Limits == nil {
 			return out, &httpapi.Error{Status: 503, Code: "LIMITS_NOT_CONFIGURED"}
 		}
-		_, err = h.Limits.DebitTx(ctx, tx, limits.Request{OwnerID: actor, OperationID: operationID(actor, key), Meter: limits.Likes, Units: 1, PayloadHash: hash}, h.now())
+		_, err = h.Limits.DebitTx(ctx, tx, limits.Request{OwnerID: actor, OperationID: out.ID, Meter: limits.Likes, Units: 1, PayloadHash: hash}, now)
 		if errors.Is(err, limits.ErrLimit) {
 			return out, &httpapi.Error{Status: 429, Code: "LIKE_LIMIT_REACHED"}
 		}
@@ -155,7 +165,7 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 		}
 	}
 	out.Action = req.Kind
-	if err = tx.QueryRowContext(ctx, `INSERT INTO profile_interactions(actor_id,target_id,action,context_kind,context_id,created_at) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, actor, req.CandidateID, req.Kind, req.Context.Kind, req.Context.ID, h.now()).Scan(&out.ID); err != nil {
+	if err = tx.QueryRowContext(ctx, `INSERT INTO profile_interactions(id,actor_id,target_id,action,context_kind,context_id,created_at) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, out.ID, actor, req.CandidateID, req.Kind, req.Context.Kind, req.Context.ID, now).Scan(&out.ID); err != nil {
 		return out, err
 	}
 	if req.Kind != "pass" {
@@ -165,13 +175,13 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 		}
 		if reciprocal {
 			m := &MatchResult{}
-			if err = tx.QueryRowContext(ctx, `INSERT INTO matches(user_low,user_high,created_at) VALUES($1,$2,$3) ON CONFLICT(user_low,user_high) DO UPDATE SET user_low=EXCLUDED.user_low RETURNING id,conversation_status,conversation_id`, ids[0], ids[1], h.now()).Scan(&m.ID, &m.ConversationStatus, &m.ConversationID); err != nil {
+			if err = tx.QueryRowContext(ctx, `INSERT INTO matches(user_low,user_high,created_at) VALUES($1,$2,$3) ON CONFLICT(user_low,user_high) DO UPDATE SET user_low=EXCLUDED.user_low RETURNING id,conversation_status,conversation_id`, ids[0], ids[1], now).Scan(&m.ID, &m.ConversationStatus, &m.ConversationID); err != nil {
 				return out, err
 			}
 			out.Match = m
 		}
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO swipe_events(action_id,actor_id,target_id,action,segment_key,occurred_at) SELECT $1,$2,$3,$4,ag.code||':'||tg.code,$5 FROM profiles a JOIN gender_options ag ON ag.id=a.gender_id JOIN profiles t ON t.user_id=$3 JOIN gender_options tg ON tg.id=t.gender_id WHERE a.user_id=$2`, out.ID, actor, req.CandidateID, req.Kind, h.now()); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO swipe_events(action_id,actor_id,target_id,action,segment_key,occurred_at) SELECT $1,$2,$3,$4,ag.code||':'||tg.code,$5 FROM profiles a JOIN gender_options ag ON ag.id=a.gender_id JOIN profiles t ON t.user_id=$3 JOIN gender_options tg ON tg.id=t.gender_id WHERE a.user_id=$2`, out.ID, actor, req.CandidateID, req.Kind, now); err != nil {
 		return out, err
 	}
 	response, err = json.Marshal(out)
@@ -181,7 +191,7 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 	if _, err = tx.ExecContext(ctx, `UPDATE profile_interactions SET response=$2 WHERE id=$1`, out.ID, string(response)); err != nil {
 		return out, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO swipe_requests(actor_id,idempotency_key,payload_hash,action_id) VALUES($1,$2,$3,$4)`, actor, key, hash, out.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO swipe_requests(actor_id,idempotency_key,payload_hash,action_id,expires_at) VALUES($1,$2,$3,$4,$5)`, actor, key, hash, out.ID, now.Add(24*time.Hour)); err != nil {
 		return out, err
 	}
 	if req.Context.Kind == "regular_deck" {
@@ -192,11 +202,19 @@ func (h *Handler) applyAction(ctx context.Context, actor, key string, req Action
 	return out, tx.Commit()
 }
 
-func operationID(actor, key string) string {
-	sum := sha256.Sum256([]byte(actor + "\x00" + key))
-	h := hex.EncodeToString(sum[:16])
-	return h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:]
+// PruneRequestKeysTx removes at most 1,000 expired replay bindings per call.
+// Permanent decisions, source events and quota operations have independent lifetimes.
+func PruneRequestKeysTx(ctx context.Context, tx *sql.Tx, now time.Time) (int64, error) {
+	result, err := tx.ExecContext(ctx, `WITH expired AS (
+ SELECT actor_id,idempotency_key FROM swipe_requests WHERE expires_at<=$1
+ ORDER BY expires_at,actor_id,idempotency_key LIMIT 1000 FOR UPDATE SKIP LOCKED
+ ) DELETE FROM swipe_requests r USING expired e WHERE r.actor_id=e.actor_id AND r.idempotency_key=e.idempotency_key`, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
+
 func refreshMatch(ctx context.Context, tx *sql.Tx, actor, target string, out *ActionResult) error {
 	m := &MatchResult{}
 	var state string
