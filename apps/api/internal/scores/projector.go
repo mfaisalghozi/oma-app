@@ -58,11 +58,11 @@ func (s *Service) Project(ctx context.Context, now time.Time, nightly bool) (Res
 		result.Busy = true
 		return result, nil
 	}
-	claim := `CREATE TEMP TABLE score_claim ON COMMIT DROP AS SELECT e.id,e.actor_id,e.target_id,e.segment_key FROM swipe_events e WHERE NOT EXISTS(SELECT 1 FROM score_projection_receipts r WHERE r.event_id=e.id) ORDER BY e.id LIMIT 1000`
+	claim := `CREATE TEMP TABLE score_claim ON COMMIT DROP AS SELECT e.id,e.actor_id,e.target_id,e.segment_key FROM swipe_events e WHERE e.occurred_at<=$1 AND NOT EXISTS(SELECT 1 FROM score_projection_receipts r WHERE r.event_id=e.id) ORDER BY e.id LIMIT 1000`
 	if nightly {
-		claim = `CREATE TEMP TABLE score_claim ON COMMIT DROP AS SELECT id,actor_id,target_id,segment_key FROM swipe_events`
+		claim = `CREATE TEMP TABLE score_claim ON COMMIT DROP AS SELECT id,actor_id,target_id,segment_key FROM swipe_events WHERE occurred_at<=$1`
 	}
-	if _, err = tx.ExecContext(ctx, claim); err != nil {
+	if _, err = tx.ExecContext(ctx, claim, now); err != nil {
 		return result, err
 	}
 	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM score_claim`).Scan(&result.Claimed); err != nil {

@@ -219,3 +219,39 @@ func TestNightlyPublishesPriorsPercentilesAndReplyMetadata(t *testing.T) {
 		t.Fatalf("unverified actor reset %+v", q)
 	}
 }
+
+func TestProjectionDefersEventsAfterCutoff(t *testing.T) {
+	for _, nightly := range []bool{false, true} {
+		t.Run(fmt.Sprintf("nightly=%t", nightly), func(t *testing.T) {
+			db, s, now := setup(t)
+			event(t, db, 1, actor, candidate, "like", now.Add(time.Second))
+
+			if got := project(t, s, now, nightly); got.Claimed != 0 {
+				t.Fatalf("event after cutoff claimed: %+v", got)
+			}
+			q, err := s.Lookup(context.Background(), candidate, "male:female")
+			if err != nil && err != sql.ErrNoRows {
+				t.Fatal(err)
+			}
+			if q.Likes != 0 || q.Passes != 0 {
+				t.Fatalf("event after cutoff contributed: %+v", q)
+			}
+
+			later := now.Add(2 * time.Second)
+			if got := project(t, s, later, false); got.Claimed != 1 {
+				t.Fatalf("deferred event must remain unreceipted: %+v", got)
+			}
+			q = quality(t, s)
+			// A single positive gets actor weight .25 and one second of decay.
+			if math.Abs(q.Likes-0.24999993314466) > 1e-10 || q.Passes != 0 {
+				t.Fatalf("deferred event contribution: %+v", q)
+			}
+			if got := project(t, s, later, false); got.Claimed != 0 {
+				t.Fatalf("deferred event replay claimed: %+v", got)
+			}
+			if quality(t, s) != q {
+				t.Fatal("deferred event replay changed quality")
+			}
+		})
+	}
+}
