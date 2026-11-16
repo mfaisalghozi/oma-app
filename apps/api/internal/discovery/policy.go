@@ -3,6 +3,7 @@ package discovery
 import (
 	"database/sql"
 	"errors"
+	"oma/apps/api/internal/limits"
 	"oma/apps/api/internal/platform/storage"
 	"time"
 )
@@ -59,11 +60,13 @@ func (p Policy) candidatePolicy() CandidatePolicy {
 }
 
 type Handler struct {
-	DB     *sql.DB
-	Store  storage.Store
-	Policy Policy
-	Now    func() time.Time
-	IsPro  func(viewerID string) bool
+	Limits          *limits.Service
+	DescribeContext ActionContextValidator
+	DB              *sql.DB
+	Store           storage.Store
+	Policy          Policy
+	Now             func() time.Time
+	IsPro           func(viewerID string) bool
 }
 
 func (h *Handler) now() time.Time {
