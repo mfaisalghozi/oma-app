@@ -1,5 +1,4 @@
-// Package discovery supplies the eligibility boundary for a future discovery module.
-// It deliberately does not expose a discovery HTTP endpoint or matching algorithm.
+// Package discovery supplies candidate eligibility, ranking and delivery.
 package discovery
 
 import (
