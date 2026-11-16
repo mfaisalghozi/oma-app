@@ -2,16 +2,61 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
+	"oma/apps/api/internal/jobs"
+	"oma/apps/api/internal/platform/config"
+	"oma/apps/api/internal/platform/database"
+	"oma/apps/api/internal/scores"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	migrate := flag.Bool("migrate", false, "apply River-owned queue migrations and exit")
+	flag.Parse()
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	log.Print("Worker scaffold started; no jobs configured")
-	<-ctx.Done()
-	log.Print("Worker stopped")
+	boot, cancel := context.WithTimeout(signalCtx, 10*time.Second)
+	defer cancel()
+	db, err := database.Open(boot, os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal("worker database unavailable")
+	}
+	defer db.Close()
+	if *migrate {
+		if err = jobs.Migrate(boot, db); err != nil {
+			log.Fatal("queue migration failed")
+		}
+		log.Print("queue migrations applied")
+		return
+	}
+	policy, err := config.LoadDiscovery(os.Getenv("DISCOVERY_POLICY_FILE"))
+	if err != nil {
+		log.Fatal("invalid discovery configuration")
+	}
+	projector, err := scores.New(db, policy.Ranking)
+	if err != nil {
+		log.Fatal("score projection requires valid DISCOVERY_POLICY_FILE")
+	}
+	runtime, err := jobs.New(db, projector, jobs.Options{})
+	if err != nil {
+		log.Fatal("worker configuration invalid")
+	}
+	// SIGTERM stops intake while in-flight work retains its context during the drain.
+	run, cancelRun := context.WithCancel(context.Background())
+	defer cancelRun()
+	if err = runtime.Start(run); err != nil {
+		log.Fatal("worker startup failed; apply queue migrations explicitly first")
+	}
+	log.Print("Discovery score worker started")
+	<-signalCtx.Done()
+	drain, cancelDrain := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelDrain()
+	if err = runtime.Stop(drain); err != nil {
+		log.Print("worker drain deadline reached")
+	}
+	log.Print("worker stopped")
 }

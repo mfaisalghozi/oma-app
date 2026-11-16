@@ -274,3 +274,50 @@ binary. Build from the repository checkout so the local contracts module exists;
 the compiled binary serves documentation independently of its working directory.
 
 Configuration follows the [Swagger UI configuration reference](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/).
+
+## Discovery ranking and delivery
+
+`DISCOVERY_POLICY_FILE` points to strict JSON for the deck/ranking policy. An
+unset path keeps Discovery routes at 503 `DISCOVERY_NOT_CONFIGURED`. The values in
+`config/discovery.example.json` are example tuning inputs, not production policy
+approval. In particular fallback prior mean, maximum age and fresh-pool quota
+require explicit operator configuration.
+
+`GET /v1/discovery` builds a bounded rotating/stratified eligible pool of at most
+300 and persists at most 20 ordered cards in `deck_cache` / `deck_cache_cards` for
+30 minutes. `limit` is 1–20; `next_cursor` is a server-owned UUID tied to the viewer
+and cached position. Preference revision, material movement from the cached
+location, policy revision, expiry or a new WIB date invalidates the cache.
+Current eligibility and active photo signing are checked on every read.
+
+`PATCH /v1/me/discovery-preferences` updates stored `min_age`, `max_age` and
+`radius_km` (one or more); it requires current completed onboarding/consent.
+`GET /v1/discovery/candidates/{candidate_id}?context_id=...` requires a current
+owned cache context and an actually delivered undecided card. The exported
+`ContextTx` lets the action ticket enforce this within its own transaction.
+
+`shown_today` counts the first delivered card per (viewer, candidate, WIB date),
+never an action/decision. Cached reloads and paging deduplicate. Candidate daily
+rows lock in UUID order and enforce the cap atomically across concurrent viewers.
+Photo-signing failure and HEAD requests do not consume exposure. Only the single
+current incoming priority pin can bypass the cap when the configured policy
+allows it; its lifetime comes from current source evidence.
+
+`discovery_quality` and `discovery_incoming_priority` are explicitly neutral
+read-view interfaces here. They do not claim score-worker or action producers.
+DSC-BE-03 supplies priority actions/exclusions; DSC-BE-05 supplies segment scores
+and source-event projection. The neutral views permit this ticket to compile and
+serve safe cold-start decks independently. PRO tier selection is an injected
+server callback, with no entitlement grants, action credits or billing in this
+ticket; the standalone API selects the free mix until that producer is wired.
+
+## Discovery score worker
+
+Apply domain migrations, then run `go run ./cmd/worker -migrate` explicitly to apply
+River-owned queue migrations. Start the worker with the server `DATABASE_URL` and
+validated `DISCOVERY_POLICY_FILE` used by the API. Fast score projection uses
+per-event receipts in batches of at most 1,000; nightly rebuilds run at midnight
+WIB with startup/60-second catch-up reconciliation. SIGTERM allows a 30-second
+drain. Phone verification and reply metadata require trusted Auth/Chat producer
+integration; absent facts retain fail-closed weighting and the reply prior.
+See [DSC-BE-05 operations and acceptance](docs/tickets/DSC-BE-05.md).

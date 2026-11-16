@@ -1,0 +1,16 @@
+# DSC-BE-04 — Daily limits
+
+Status: limits module complete; consumers wire action/search transactions in their own tickets.
+Dependency: DSC-BE-00 (`a2ee06a`), independently builds without discovery deck/action migrations. DSC-BE-03 consumes this module alongside DSC-BE-02; DSB-BE-04 consumes search reservations. Migration 012 contains limits operations only and references accounts from Sprint 1.
+
+Ordinary likes receive 15 units per WIB day plus 15 immediately when the existing thirteen profile fields are all complete. PRO receives the same like allocation. Describe searches receive 3 FREE or 20 PRO units. WIB midnight is 17:00 UTC, calculated directly; no scheduler or worker is required. Superlikes remain a separate wallet concern and must not call the ordinary-like meter. No billing, Featured, comments, moderation or refund domain is included.
+
+`internal/limits` owns fixed grants, WIB buckets, the completion query, dynamic balances, and reserve/settle/release/debit helpers using the caller's `sql.Tx`. Each helper serializes on the owner account row, shared with profile edits. The action caller must enforce pair uniqueness before charging a fresh operation; this module cannot infer pair identity from an opaque payload fingerprint. The caller must roll back its entire transaction on errors.
+
+Operations are durable owner/meter/UUID identities with positive integer units and a nonempty canonical payload fingerprint (maximum 256 bytes). Changed payload/units conflict. Replaying a reservation returns its original bucket and state, including released; it never reserves again. Settled and released terminal transitions replay safely; crossing terminal states conflicts. Outstanding reservations survive midnight and settle/release only in their original day. Capacity reads recompute current grants, so upgrades apply immediately and downgrades retain a floor of used plus reserved. There is no automatic reservation expiry; search workers must settle or release each persisted request as owned by DSB-BE-04.
+
+Until billing exists, PRO is a trusted server allowlist only. `ConfigFromEnvironment` reads `APP_ENV` and comma-separated `DEVELOPMENT_PRO_USER_IDS`. `NewService` rejects a nonempty allowlist unless environment is exactly `development`, `local` or `test`, and rejects non-UUID entries. Production/unknown environments cannot enable this flag. The API owner must construct and validate this service at startup. The zero-allowlist service defaults to FREE. There is no entitlement table or client override.
+
+`Service.HandlerUsage(db)` exposes an authenticated read boundary for future API wiring. The caller mounts it behind existing identity/account guards. It rejects query inputs, derives the owner from verified identity, and returns only that owner's usage. This branch intentionally does not mount future action, deck or Describe routes.
+
+Validation: public pure tests for exact grants, WIB reset, dev-PRO validation; real PostgreSQL/PostGIS tests for concurrent last-like and last-search reservations, payload mismatch, original-day replay/release/settle, terminal replay, caller rollback, immediate profile upgrade/downgrade, and authenticated usage HTTP reads with client override rejection. Existing API integration tests include migration rollback/reapplication. No device test applies to this backend-only module.

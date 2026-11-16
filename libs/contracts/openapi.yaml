@@ -22,6 +22,8 @@ tags:
     description: Read and update the authenticated user's profile.
   - name: Locations
     description: Manage the authenticated user's location coordinates.
+  - name: Discovery
+    description: Ranked eligible candidate decks and current public profiles.
 servers:
   - url: /
 paths:
@@ -1194,6 +1196,184 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/APIError"
+  /v1/discovery:
+    get:
+      tags: [Discovery]
+      operationId: getDiscoveryDeck
+      summary: Read the current ordered Discovery deck
+      security: [{supabaseJWT: []}]
+      parameters:
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 20, default: 20}}
+        - {in: query, name: cursor, description: Opaque server-owned cursor bound to the authenticated viewer and current cache., schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Current eligible cards; first delivered candidate exposure is counted once per viewer and WIB date.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [context_id, cards, next_cursor, deck_expires_at, end_reason]
+                    properties:
+                      context_id: {type: string, format: uuid}
+                      cards: {type: array, maxItems: 20, items: {$ref: "#/components/schemas/DiscoveryCard"}}
+                      next_cursor: {type: string, format: uuid, nullable: true}
+                      deck_expires_at: {type: string, format: date-time}
+                      end_reason: {type: string, enum: [candidate_pool_exhausted], nullable: true}
+        "400": {description: Invalid cursor or limit}
+        "401": {description: Authentication required}
+        "403": {description: Account, onboarding, consent or location gate failed}
+        "409": {description: Stale cursor context}
+        "503": {description: Discovery policy or storage unavailable}
+  /v1/discovery/actions:
+    post:
+      tags: [Discovery]
+      operationId: applyDiscoveryAction
+      summary: Commit one irreversible decision for an eligible delivered candidate
+      security: [{supabaseJWT: []}]
+      parameters:
+        - {in: header, name: Idempotency-Key, required: true, schema: {type: string, minLength: 1, maxLength: 200}, description: Scoped to the authenticated actor. Reusing a key with a different canonical request conflicts.}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [candidate_id, kind, context]
+              properties:
+                candidate_id: {type: string, format: uuid}
+                kind: {type: string, enum: [pass, like, super_like]}
+                context:
+                  type: object
+                  additionalProperties: false
+                  required: [kind, id]
+                  properties:
+                    kind: {type: string, enum: [regular_deck]}
+                    id: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Original committed decision with current match and conversation handoff state. Retained unmatched pairs return null match and remain excluded. Same-action retries under new keys alias the original decision without charging again. Pass is free; super_like debits its separate funded balance. Actions never increment exposure counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [action_id, action, match]
+                    properties:
+                      action_id: {type: string, format: uuid}
+                      action: {type: string, enum: [pass, like, super_like]}
+                      match:
+                        type: object
+                        nullable: true
+                        required: [id, conversation_status, conversation_id]
+                        properties:
+                          id: {type: string, format: uuid}
+                          conversation_status: {type: string, enum: [pending, ready]}
+                          conversation_id: {type: string, format: uuid, nullable: true}
+        "422": {description: Invalid action or idempotency key}
+        "401": {description: Authentication required}
+        "403": {description: Actor eligibility gate failed}
+        "404": {description: Unavailable candidate or foreign context}
+        "409": {description: Irreversible decision conflict, reused key conflict or stale context}
+        "429": {description: LIKE_LIMIT_REACHED or SUPER_LIKE_BALANCE_EMPTY}
+        "503": {description: Discovery policy or limits unavailable}
+  /v1/me/usage:
+    get:
+      tags: [Discovery]
+      operationId: getDailyUsage
+      summary: Read fixed WIB daily grants and remaining usage for the authenticated actor
+      security: [{supabaseJWT: []}]
+      responses:
+        "200":
+          description: Likes have 15 base plus 15 at full profile completion. Describe searches have 3 free or 20 PRO. PRO comes only from the validated server development allowlist until billing exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [bucket, resets_at, pro, profile_complete, likes, searches]
+                    properties:
+                      bucket: {type: string, format: date}
+                      resets_at: {type: string, format: date-time}
+                      pro: {type: boolean}
+                      profile_complete: {type: boolean}
+                      likes: {$ref: "#/components/schemas/DailyBalance"}
+                      searches: {$ref: "#/components/schemas/DailyBalance"}
+        "400": {description: Query parameters are not accepted}
+        "401": {description: Authentication required}
+        "403": {description: Actor eligibility gate failed}
+  /v1/discovery/candidates/{candidate_id}:
+    get:
+      tags: [Discovery]
+      operationId: getDiscoveryCandidate
+      summary: Read a currently eligible delivered card in an owned deck context
+      security: [{supabaseJWT: []}]
+      parameters:
+        - {in: path, name: candidate_id, required: true, schema: {type: string, format: uuid}}
+        - {in: query, name: context_id, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Safe current candidate projection with fresh signed active photos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: "#/components/schemas/DiscoveryCard"}
+        "401": {description: Authentication required}
+        "403": {description: Eligibility gate failed}
+        "404": {description: Unavailable candidate or foreign context}
+        "409": {description: Stale context}
+        "503": {description: Discovery policy or storage unavailable}
+  /v1/me/discovery-preferences:
+    patch:
+      tags: [Discovery]
+      operationId: updateDiscoveryPreferences
+      summary: Update stored reciprocal age and distance preferences
+      security: [{supabaseJWT: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                min_age: {type: integer, minimum: 18, maximum: 32767}
+                max_age: {type: integer, minimum: 18, maximum: 32767}
+                radius_km: {type: number, exclusiveMinimum: true, minimum: 0, description: Must not exceed the server-configured radius maximum.}
+      responses:
+        "200":
+          description: Effective stored preferences; a changed value invalidates the cached deck.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [min_age, max_age, radius_km]
+                    properties:
+                      min_age: {type: integer}
+                      max_age: {type: integer}
+                      radius_km: {type: number}
+        "401": {description: Authentication required}
+        "403": {description: Account, onboarding or consent gate failed}
+        "422": {description: Invalid preferences or minimum exceeds maximum}
+        "503": {description: Discovery policy unavailable}
 components:
   securitySchemes:
     supabaseJWT:
@@ -1654,3 +1834,64 @@ components:
           type: string
           maxLength: 1000
           nullable: true
+
+    DiscoveryCard:
+      type: object
+      additionalProperties: false
+      required: [id, display_name, age, height_cm, approx_distance_km, bio, ambition, occupation, education_degree, profile_revision, photos, hobbies, looking_for, personality, religion, university]
+      properties:
+        id: {type: string, format: uuid}
+        display_name: {type: string, description: First name only}
+        age: {type: integer, minimum: 18}
+        height_cm: {type: integer}
+        approx_distance_km: {type: integer, minimum: 0}
+        bio: {type: string}
+        ambition: {type: string, nullable: true}
+        occupation: {type: string, nullable: true, description: Reserved public field; null until authored profile support exists.}
+        education_degree: {type: string, nullable: true, description: Reserved public field; null until authored profile support exists.}
+        profile_revision: {type: integer, format: int64}
+        photos:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, position, read_url]
+            properties:
+              id: {type: string, format: uuid}
+              position: {type: integer}
+              read_url: {type: string, format: uri}
+        hobbies: {type: array, items: {$ref: "#/components/schemas/DiscoveryOption"}}
+        looking_for: {type: array, items: {$ref: "#/components/schemas/DiscoveryOption"}}
+        personality: {$ref: "#/components/schemas/DiscoveryNullableOption"}
+        religion: {$ref: "#/components/schemas/DiscoveryNullableOption"}
+        university:
+          type: object
+          nullable: true
+          required: [id, name, country_code]
+          properties:
+            id: {type: string, format: uuid}
+            name: {type: string}
+            country_code: {type: string}
+    DiscoveryOption:
+      type: object
+      required: [id, code, label]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        label: {type: string}
+    DiscoveryNullableOption:
+      type: object
+      nullable: true
+      required: [id, code, label]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        label: {type: string}
+    DailyBalance:
+      type: object
+      required: [limit, used, reserved, available]
+      properties:
+        limit: {type: integer, minimum: 0}
+        used: {type: integer, minimum: 0}
+        reserved: {type: integer, minimum: 0}
+        available: {type: integer, minimum: 0}
