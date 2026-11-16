@@ -31,7 +31,7 @@ func swipe(t *testing.T, h http.Handler, actor, key, body string, status int) ma
 	return out
 }
 func swipeBody(target, context, action string) string {
-	return fmt.Sprintf(`{"target_id":%q,"context_id":%q,"context_kind":"regular_deck","action":%q}`, target, context, action)
+	return fmt.Sprintf(`{"candidate_id":%q,"context":{"id":%q,"kind":"regular_deck"},"kind":%q}`, target, context, action)
 }
 func TestSwipePassIsIrreversibleAndAliasesNewKeys(t *testing.T) {
 	_, h := deckSetup(t)
@@ -214,4 +214,39 @@ func TestSwipeRejectsForeignStaleAndCurrentlyBlockedContexts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSwipeReplayRefreshesRetainedMatchAndAcceptsBoundedOpaqueKeys(t *testing.T) {
+	db, h := deckSetup(t)
+	da := call(t, h, "GET", "/v1/discovery", "alice", "", 200)["data"].(map[string]any)["context_id"].(string)
+	dbb := call(t, h, "GET", "/v1/discovery", "bob", "", 200)["data"].(map[string]any)["context_id"].(string)
+	body := swipeBody(bob, da, "like")
+	first := swipe(t, h, "alice", "mobile-request-A", body, 200)["data"].(map[string]any)
+	if first["match"] != nil {
+		t.Fatal("one-sided like claimed match")
+	}
+	swipe(t, h, "bob", "mobile-request-B", swipeBody(alice, dbb, "like"), 200)
+	replay := swipe(t, h, "alice", "mobile-request-A", body, 200)["data"].(map[string]any)
+	if replay["match"] == nil {
+		t.Fatal("replay did not refresh current mutual match")
+	}
+	if _, err := db.Exec(`UPDATE matches SET state='unmatched'`); err != nil {
+		t.Fatal(err)
+	}
+	replay = swipe(t, h, "alice", "mobile-request-A", body, 200)["data"].(map[string]any)
+	if replay["match"] != nil {
+		t.Fatal("unmatched replay claimed active conversation handoff")
+	}
+	alias := swipe(t, h, "alice", "mobile-alias-key", body, 200)["data"].(map[string]any)
+	if alias["action_id"] != first["action_id"] || alias["match"] != nil {
+		t.Fatal("unmatched alias changed decision or restored active match")
+	}
+	swipe(t, h, "alice", "mobile-alias-key", swipeBody(bob, da, "super_like"), 409)
+	for _, actor := range []string{"alice", "bob"} {
+		d := call(t, h, "GET", "/v1/discovery", actor, "", 200)["data"].(map[string]any)
+		if len(d["cards"].([]any)) != 0 {
+			t.Fatal("retained unmatched pair reentered discovery")
+		}
+	}
+	swipe(t, h, "alice", strings.Repeat("x", 201), body, 422)
 }

@@ -1235,7 +1235,7 @@ paths:
       summary: Commit one irreversible decision for an eligible delivered candidate
       security: [{supabaseJWT: []}]
       parameters:
-        - {in: header, name: Idempotency-Key, required: true, schema: {type: string, format: uuid}, description: Scoped to the authenticated actor. Reusing a key with a different canonical request conflicts.}
+        - {in: header, name: Idempotency-Key, required: true, schema: {type: string, minLength: 1, maxLength: 200}, description: Scoped to the authenticated actor. Reusing a key with a different canonical request conflicts.}
       requestBody:
         required: true
         content:
@@ -1243,15 +1243,20 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [target_id, context_id, context_kind, action]
+              required: [candidate_id, kind, context]
               properties:
-                target_id: {type: string, format: uuid}
-                context_id: {type: string, format: uuid}
-                context_kind: {type: string, enum: [regular_deck]}
-                action: {type: string, enum: [pass, like, super_like]}
+                candidate_id: {type: string, format: uuid}
+                kind: {type: string, enum: [pass, like, super_like]}
+                context:
+                  type: object
+                  additionalProperties: false
+                  required: [kind, id]
+                  properties:
+                    kind: {type: string, enum: [regular_deck]}
+                    id: {type: string, format: uuid}
       responses:
         "200":
-          description: Original committed decision. Same-action retries under new keys alias the original decision without charging again. Pass is free; super_like debits its separate funded balance. Actions never increment exposure counts.
+          description: Original committed decision with current match and conversation handoff state. Retained unmatched pairs return null match and remain excluded. Same-action retries under new keys alias the original decision without charging again. Pass is free; super_like debits its separate funded balance. Actions never increment exposure counts.
           content:
             application/json:
               schema:
@@ -1272,7 +1277,7 @@ paths:
                           id: {type: string, format: uuid}
                           conversation_status: {type: string, enum: [pending, ready]}
                           conversation_id: {type: string, format: uuid, nullable: true}
-        "400": {description: Invalid action or idempotency key}
+        "422": {description: Invalid action or idempotency key}
         "401": {description: Authentication required}
         "403": {description: Actor eligibility gate failed}
         "404": {description: Unavailable candidate or foreign context}
