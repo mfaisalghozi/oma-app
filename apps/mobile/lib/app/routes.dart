@@ -11,7 +11,10 @@ abstract final class Routes {
   static const consent = '/onboarding/consent'; // M05
   static String onboardingStep(String step) => '/onboarding/$step';
 
-  static const discover = '/discover'; // M12 (not in this feature)
+  static const discover = '/discover'; // M12 / M13, mode lives in the query
+  static const likes = '/likes'; // placeholder this sprint
+  static const matches = '/matches'; // placeholder this sprint
+  static const profile = '/profile'; // placeholder this sprint
   static const restricted = '/restricted'; // M26 / frozen prompt
 
   static const public = {

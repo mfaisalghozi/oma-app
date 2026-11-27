@@ -13,6 +13,9 @@ import 'package:oma_app/features/onboarding/application/onboarding_draft_control
 import 'package:oma_app/features/onboarding/domain/entities/onboarding_draft.dart';
 import 'package:oma_app/features/onboarding/domain/repositories/onboarding_draft_store.dart';
 import 'package:oma_app/features/photos/domain/photo_upload.dart';
+import 'package:oma_app/features/usage/application/usage_providers.dart';
+import 'package:oma_app/features/usage/domain/entities/daily_usage.dart';
+import 'package:oma_app/features/usage/domain/repositories/usage_repository.dart';
 
 const testConfig = AppConfig(
   flavor: 'test',
@@ -135,10 +138,53 @@ class NoopPhotoRepository implements PhotoRepository {
   Future<Map<String, String>> signedUrls() async => const {};
 }
 
+DailyUsage testUsage({
+  int likesAvailable = 12,
+  int likesLimit = 30,
+  int searchesAvailable = 3,
+  int searchesLimit = 3,
+  bool pro = false,
+  bool profileComplete = true,
+}) => DailyUsage(
+  bucket: '2026-11-12',
+  resetsAt: DateTime.utc(2026, 11, 12, 17),
+  pro: pro,
+  profileComplete: profileComplete,
+  likes: UsageBalance(
+    limit: likesLimit,
+    used: likesLimit - likesAvailable,
+    reserved: 0,
+    available: likesAvailable,
+  ),
+  searches: UsageBalance(
+    limit: searchesLimit,
+    used: searchesLimit - searchesAvailable,
+    reserved: 0,
+    available: searchesAvailable,
+  ),
+);
+
+class FakeUsageRepository implements UsageRepository {
+  FakeUsageRepository([DailyUsage? usage]) : usage = usage ?? testUsage();
+
+  DailyUsage usage;
+  Object? error;
+  int calls = 0;
+
+  @override
+  Future<DailyUsage> fetch() async {
+    calls++;
+    final failure = error;
+    if (failure != null) throw failure;
+    return usage;
+  }
+}
+
 List<Override> baseOverrides({
   required FakeAuthRepository auth,
   required FakeAccountRepository accounts,
   OnboardingDraftStore? drafts,
+  UsageRepository? usage,
 }) => [
   onboardingDraftStoreProvider.overrideWithValue(drafts ?? MemoryDraftStore()),
   appConfigProvider.overrideWithValue(testConfig),
@@ -146,4 +192,5 @@ List<Override> baseOverrides({
   accessTokenSourceProvider.overrideWithValue(auth),
   accountRepositoryProvider.overrideWithValue(accounts),
   socialAuthRepositoryProvider.overrideWithValue(FakeSocialAuthRepository()),
+  usageRepositoryProvider.overrideWithValue(usage ?? FakeUsageRepository()),
 ];
