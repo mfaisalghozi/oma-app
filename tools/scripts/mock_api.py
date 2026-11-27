@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -29,6 +30,43 @@ STATE = {
     "onboarding_done": False,
     "photos": {},
 }
+
+# Daily grants follow the real rules: 15 likes base plus 15 at full profile
+# completion, 3 describe searches free or 20 for PRO. A complete profile is the
+# default so the app shows the full 30 the board draws.
+USAGE = {
+    "pro": False,
+    "profile_complete": True,
+    "likes": {"limit": 30, "used": 18, "reserved": 0},
+    "searches": {"limit": 3, "used": 0, "reserved": 0},
+}
+
+WIB = timezone(timedelta(hours=7))
+
+
+def next_wib_midnight_utc() -> str:
+    """Next midnight in Asia/Jakarta, returned in UTC as the API does."""
+    now_wib = datetime.now(WIB)
+    midnight = (now_wib + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return midnight.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def usage_payload() -> dict:
+    likes = USAGE["likes"]
+    searches = USAGE["searches"]
+    return {
+        "bucket": datetime.now(WIB).date().isoformat(),
+        "resets_at": next_wib_midnight_utc(),
+        "pro": USAGE["pro"],
+        "profile_complete": USAGE["profile_complete"],
+        "likes": {**likes, "available": max(likes["limit"] - likes["used"], 0)},
+        "searches": {
+            **searches,
+            "available": max(searches["limit"] - searches["used"], 0),
+        },
+    }
 
 MASTER_DATA = {
     "gender": [
@@ -199,6 +237,16 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/v1/profile-data":
             return self._master_data(query)
+
+        if path == "/v1/me/usage":
+            scenario = (query.get("scenario") or [""])[0]
+            if scenario == "error":
+                return self._error(
+                    503, "SERVICE_UNAVAILABLE", "usage unavailable"
+                )
+            if scenario == "slow":
+                time.sleep(3)
+            return self._data(usage_payload())
 
         if path == "/v1/photos":
             return self._data(

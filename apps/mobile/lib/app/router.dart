@@ -11,7 +11,9 @@ import '../features/auth/presentation/email_sign_in_screen.dart';
 import '../features/auth/presentation/sign_in_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
 import '../features/auth/presentation/welcome_screen.dart';
-import '../features/discover/presentation/discover_screen.dart';
+import '../core/config/app_config.dart';
+import '../features/discover/presentation/discover_mode.dart';
+import '../features/discover/presentation/discover_shell.dart';
 import '../features/onboarding/application/onboarding_resume.dart';
 import '../features/onboarding/domain/entities/onboarding_step.dart';
 import '../features/onboarding/presentation/consent_screen.dart';
@@ -24,6 +26,9 @@ import '../features/onboarding/presentation/steps/personality_screen.dart';
 import '../features/onboarding/presentation/steps/photos_screen.dart';
 import '../features/safety/presentation/restricted_screen.dart';
 import 'routes.dart';
+import 'shell/app_shell.dart';
+import 'shell/profile_tab.dart';
+import 'shell/tab_placeholder.dart';
 
 GateState readGateState(Ref ref) {
   final session = ref.read(sessionControllerProvider);
@@ -74,6 +79,7 @@ Widget _onboardingStep(OnboardingStep step) => switch (step) {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _GateRefresh(ref);
+  final describeEnabled = ref.read(appConfigProvider).describeEnabled;
   final router = GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: refresh,
@@ -114,7 +120,49 @@ final routerProvider = Provider<GoRouter>((ref) {
           OnboardingStep.fromPath(state.pathParameters['step'])!,
         ),
       ),
-      GoRoute(path: Routes.discover, builder: (_, _) => const DiscoverScreen()),
+      StatefulShellRoute.indexedStack(
+        builder: (_, _, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.discover,
+                builder: (_, state) => DiscoverShell(
+                  mode: DiscoverMode.fromQuery(
+                    state.uri.queryParameters['mode'],
+                  ),
+                  describeEnabled: describeEnabled,
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.likes,
+                builder: (_, _) => const TabPlaceholder(title: 'Likes you'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.matches,
+                builder: (_, _) => const TabPlaceholder(title: 'Matches'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.profile,
+                builder: (_, _) => const ProfileTab(),
+              ),
+            ],
+          ),
+        ],
+      ),
       GoRoute(
         path: Routes.restricted,
         builder: (_, _) => const RestrictedScreen(),

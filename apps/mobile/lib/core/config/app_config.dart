@@ -11,6 +11,7 @@ class AppConfig {
     this.googleWebClientId = '',
     this.googleIosClientId = '',
     this.webBaseUrl = 'https://oma.app',
+    this.describeEnabled = false,
     this.nsfwModel = const NsfwModelSource(),
   });
 
@@ -33,6 +34,7 @@ class AppConfig {
       'WEB_BASE_URL',
       defaultValue: 'https://oma.app',
     ),
+    describeEnabled: bool.fromEnvironment('DESCRIBE_ENABLED'),
     nsfwModel: NsfwModelSource(
       androidUrl: String.fromEnvironment('NSFW_MODEL_URL_ANDROID'),
       androidSha256: String.fromEnvironment('NSFW_MODEL_SHA256_ANDROID'),
@@ -63,6 +65,9 @@ class AppConfig {
 
   /// TODO(web): confirm the domain; `oma.app` is a placeholder.
   final String webBaseUrl;
+
+  /// Describe stays dark until the AWS Bedrock provider is unblocked.
+  final bool describeEnabled;
 
   final NsfwModelSource nsfwModel;
 

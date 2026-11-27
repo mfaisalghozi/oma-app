@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oma_app/app/app.dart';
 import 'package:oma_app/features/auth/presentation/welcome_screen.dart';
+import 'package:oma_app/features/discover/presentation/discover_shell.dart';
 import 'package:oma_app/features/auth/domain/entities/account_state.dart';
 import 'package:oma_app/features/onboarding/application/consent_controller.dart';
 import 'package:oma_app/features/onboarding/domain/entities/consent_document.dart';
@@ -53,15 +54,20 @@ void main() {
       auth: FakeAuthRepository(testUser),
       accounts: FakeAccountRepository(account(next: NextAction.discovery)),
     );
-    expect(find.textContaining('M12'), findsOneWidget);
+    expect(find.byType(DiscoverShell), findsOneWidget);
+    expect(find.text('Discover'), findsWidgets);
   });
 
-  testWidgets('sign-out from Discover returns to Welcome', (tester) async {
+  testWidgets('sign-out from the Profile tab returns to Welcome', (
+    tester,
+  ) async {
     await pumpApp(
       tester,
       auth: FakeAuthRepository(testUser),
       accounts: FakeAccountRepository(account(next: NextAction.discovery)),
     );
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
     expect(find.byType(WelcomeScreen), findsOneWidget);
