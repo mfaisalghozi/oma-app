@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/routes.dart';
 import '../../usage/application/usage_providers.dart';
 import '../../usage/presentation/usage_pill.dart';
-import 'describe_tab.dart';
+import '../../describe/presentation/describe_screen.dart';
 import 'discover_mode.dart';
 import 'swipe_screen.dart';
 import 'widgets/discover_header.dart';
@@ -59,7 +59,7 @@ class DiscoverShell extends ConsumerWidget {
           Expanded(
             child: mode == DiscoverMode.swipe
                 ? SwipeScreen(describeEnabled: describeEnabled)
-                : const DescribeTab(),
+                : const DescribeScreen(),
           ),
         ],
       ),
