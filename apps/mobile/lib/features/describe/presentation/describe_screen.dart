@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/oma_colors.dart';
-import '../../../core/widgets/coming_soon_sheet.dart';
 import '../../../core/widgets/oma_button.dart';
 import '../../usage/application/usage_providers.dart';
 import '../application/describe_controller.dart';
@@ -144,13 +144,12 @@ class _DescribeScreenState extends ConsumerState<DescribeScreen> {
     );
   }
 
-  void _submit() {
-    // DSB-FE-02 starts the search; this ticket only validates the box.
-    showComingSoonSheet(
-      context,
-      title: 'Search is not wired yet',
-      body: 'The async search lands in the next ticket.',
-    );
+  Future<void> _submit() async {
+    final notifier = ref.read(describeControllerProvider.notifier);
+    await notifier.submit();
+    if (!mounted) return;
+    final searchId = ref.read(describeControllerProvider).search?.id;
+    if (searchId != null) context.go('/discover/results/$searchId');
   }
 
   static const _prompts = [

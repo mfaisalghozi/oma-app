@@ -65,19 +65,6 @@ void main() {
     expect(find.text('Keep it under 500 characters'), findsOneWidget);
   });
 
-  testWidgets('a valid query opens the pending-search sheet', (tester) async {
-    await pump(tester);
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextField), 'Male, min 180cm, hiking');
-    await tester.pump();
-
-    await tester.tap(find.text('Find matches'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Search is not wired yet'), findsOneWidget);
-  });
-
   testWidgets('no searches left shows the red counter and PRO', (tester) async {
     await pump(tester, searchesAvailable: 0);
     await tester.pumpAndSettle();
