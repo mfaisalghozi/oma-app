@@ -12,10 +12,16 @@ import 'package:oma_app/features/auth/domain/repositories/social_auth_repository
 import 'package:oma_app/features/onboarding/application/onboarding_draft_controller.dart';
 import 'package:oma_app/features/onboarding/domain/entities/onboarding_draft.dart';
 import 'package:oma_app/features/onboarding/domain/repositories/onboarding_draft_store.dart';
+import 'package:oma_app/features/discover/application/deck_providers.dart';
+import 'package:oma_app/features/discover/domain/repositories/deck_repository.dart';
+import 'package:oma_app/features/discover/domain/repositories/swipe_outbox.dart';
+import 'package:oma_app/features/discover/domain/repositories/swipe_repository.dart';
 import 'package:oma_app/features/photos/domain/photo_upload.dart';
 import 'package:oma_app/features/usage/application/usage_providers.dart';
 import 'package:oma_app/features/usage/domain/entities/daily_usage.dart';
 import 'package:oma_app/features/usage/domain/repositories/usage_repository.dart';
+
+import 'deck_fakes.dart';
 
 const testConfig = AppConfig(
   flavor: 'test',
@@ -185,6 +191,9 @@ List<Override> baseOverrides({
   required FakeAccountRepository accounts,
   OnboardingDraftStore? drafts,
   UsageRepository? usage,
+  DeckRepository? deck,
+  SwipeRepository? swipe,
+  SwipeOutbox? outbox,
 }) => [
   onboardingDraftStoreProvider.overrideWithValue(drafts ?? MemoryDraftStore()),
   appConfigProvider.overrideWithValue(testConfig),
@@ -193,4 +202,7 @@ List<Override> baseOverrides({
   accountRepositoryProvider.overrideWithValue(accounts),
   socialAuthRepositoryProvider.overrideWithValue(FakeSocialAuthRepository()),
   usageRepositoryProvider.overrideWithValue(usage ?? FakeUsageRepository()),
+  deckRepositoryProvider.overrideWithValue(deck ?? FakeDeckRepository()),
+  swipeRepositoryProvider.overrideWithValue(swipe ?? FakeSwipeRepository()),
+  swipeOutboxProvider.overrideWithValue(outbox ?? MemorySwipeOutbox()),
 ];

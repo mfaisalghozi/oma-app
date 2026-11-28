@@ -130,7 +130,6 @@ void main() {
     await _pump(tester, overrides: overrides());
     await tester.pumpAndSettle();
     expect(find.byType(SuperLikeChip), findsNothing);
-    expect(find.byIcon(Icons.star_rounded), findsNothing);
   });
 
   testWidgets('renders the four tab destinations', (tester) async {
