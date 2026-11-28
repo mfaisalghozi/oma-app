@@ -13,6 +13,7 @@ import '../features/auth/presentation/splash_screen.dart';
 import '../features/auth/presentation/welcome_screen.dart';
 import '../core/config/app_config.dart';
 import '../features/discover/presentation/discover_mode.dart';
+import '../features/describe/presentation/describe_results_screen.dart';
 import '../features/discover/presentation/discover_shell.dart';
 import '../features/onboarding/application/onboarding_resume.dart';
 import '../features/onboarding/domain/entities/onboarding_step.dart';
@@ -134,6 +135,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   ),
                   describeEnabled: describeEnabled,
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'results/:searchId',
+                    builder: (_, state) => DescribeResultsScreen(
+                      searchId: state.pathParameters['searchId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

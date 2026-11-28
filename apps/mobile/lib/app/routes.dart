@@ -15,7 +15,10 @@ abstract final class Routes {
   static const likes = '/likes'; // placeholder this sprint
   static const matches = '/matches'; // placeholder this sprint
   static const profile = '/profile'; // placeholder this sprint
-  static const restricted = '/restricted'; // M26 / frozen prompt
+  static const restricted = '/restricted';
+
+  static String describeResults(String id) =>
+      '$discover/results/$id'; // M26 / frozen prompt
 
   static const public = {
     welcome,
