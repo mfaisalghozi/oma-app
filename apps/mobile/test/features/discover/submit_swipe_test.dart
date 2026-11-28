@@ -83,6 +83,15 @@ void main() {
     expect(await send(), SwipeOutcome.dropped);
   });
 
+  test('asks the gates to re-run when the account cannot swipe', () async {
+    repository.error = const ApiFailure(
+      code: ApiErrorCode.accountSuspended,
+      statusCode: 403,
+    );
+    expect(await send(), SwipeOutcome.gate);
+    expect(outbox.saved, isEmpty);
+  });
+
   test('never queues the same key twice', () async {
     repository.error = const NetworkFailure();
     await send();

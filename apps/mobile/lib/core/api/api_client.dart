@@ -25,6 +25,12 @@ final consentRequiredHandlerProvider = Provider<Future<void> Function()>(
   (ref) => () async {},
 );
 
+/// Re-runs the start gates after a 403, so a suspended or frozen account lands
+/// on /restricted and an incomplete profile goes back to onboarding.
+final gateRefreshProvider = Provider<Future<void> Function()>(
+  (ref) => () async {},
+);
+
 class ApiClient {
   ApiClient(this._dio);
 

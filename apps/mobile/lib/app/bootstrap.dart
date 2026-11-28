@@ -39,6 +39,10 @@ Future<void> bootstrap(AppConfig config) async {
           (ref) =>
               () => ref.read(sessionControllerProvider.notifier).refresh(),
         ),
+        gateRefreshProvider.overrideWith(
+          (ref) =>
+              () => ref.read(sessionControllerProvider.notifier).refresh(),
+        ),
       ],
       child: const OmaApp(),
     ),
