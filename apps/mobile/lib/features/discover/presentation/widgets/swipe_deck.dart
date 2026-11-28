@@ -17,6 +17,7 @@ class SwipeDeck extends StatefulWidget {
     required this.cards,
     required this.onSwipe,
     required this.onComment,
+    this.returning,
     this.enabled = true,
     super.key,
   });
@@ -24,6 +25,10 @@ class SwipeDeck extends StatefulWidget {
   final List<DeckCard> cards;
   final Future<void> Function(SwipeKind kind) onSwipe;
   final VoidCallback onComment;
+
+  /// A card the server refused: it flies back in from where it left.
+  final ({int seq, String id, SwipeKind kind})? returning;
+
   final bool enabled;
 
   @override
@@ -45,6 +50,28 @@ class _SwipeDeckState extends State<SwipeDeck>
   Animation<Offset>? _fly;
   SwipeKind? _pending;
   bool _burst = false;
+
+  @override
+  void didUpdateWidget(SwipeDeck oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final back = widget.returning;
+    if (back == null || back.seq == oldWidget.returning?.seq) return;
+    if (widget.cards.isEmpty || widget.cards.first.id != back.id) return;
+    _drag = _offscreenFor(back.kind);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _springBack();
+    });
+  }
+
+  Offset _offscreenFor(SwipeKind kind) {
+    final size = MediaQuery.sizeOf(context);
+    return switch (kind) {
+      SwipeKind.like => Offset(size.width * 1.4, 40),
+      SwipeKind.pass => Offset(-size.width * 1.4, 40),
+      SwipeKind.superLike => Offset(0, -size.height * 1.2),
+    };
+  }
 
   @override
   void dispose() {
