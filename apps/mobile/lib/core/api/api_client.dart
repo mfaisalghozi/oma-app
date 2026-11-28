@@ -32,8 +32,17 @@ class ApiClient {
 
   Dio get dio => _dio;
 
-  Future<Object?> get(String path, {Map<String, Object?>? query}) =>
-      _send(() => _dio.get<Object?>(path, queryParameters: query));
+  Future<Object?> get(
+    String path, {
+    Map<String, Object?>? query,
+    Map<String, String>? headers,
+  }) => _send(
+    () => _dio.get<Object?>(
+      path,
+      queryParameters: query,
+      options: headers == null ? null : Options(headers: headers),
+    ),
+  );
 
   Future<Object?> post(String path, {Object? body, String? idempotencyKey}) =>
       _send(

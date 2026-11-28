@@ -7,7 +7,7 @@ import '../../usage/application/usage_providers.dart';
 import '../../usage/presentation/usage_pill.dart';
 import 'describe_tab.dart';
 import 'discover_mode.dart';
-import 'swipe_tab.dart';
+import 'swipe_screen.dart';
 import 'widgets/discover_header.dart';
 import 'widgets/mode_switch.dart';
 
@@ -58,7 +58,7 @@ class DiscoverShell extends ConsumerWidget {
           ),
           Expanded(
             child: mode == DiscoverMode.swipe
-                ? const SwipeTab()
+                ? SwipeScreen(describeEnabled: describeEnabled)
                 : const DescribeTab(),
           ),
         ],

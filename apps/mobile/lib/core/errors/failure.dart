@@ -88,5 +88,26 @@ abstract final class ApiErrorCode {
   static const rateLimitExceeded = 'RATE_LIMIT_EXCEEDED';
   static const internalServerError = 'INTERNAL_SERVER_ERROR';
 
+  // Discovery (Sprint 2).
+  static const discoveryNotEligible = 'DISCOVERY_NOT_ELIGIBLE';
+  static const discoveryNotConfigured = 'DISCOVERY_NOT_CONFIGURED';
+  static const invalidCursor = 'INVALID_CURSOR';
+  static const invalidLimit = 'INVALID_LIMIT';
+  static const staleDiscoveryContext = 'STALE_DISCOVERY_CONTEXT';
+  static const likeLimitReached = 'LIKE_LIMIT_REACHED';
+  static const superLikeBalanceEmpty = 'SUPER_LIKE_BALANCE_EMPTY';
+  static const actionConflict = 'ACTION_CONFLICT';
+  static const idempotencyConflict = 'IDEMPOTENCY_CONFLICT';
+  static const invalidAction = 'INVALID_ACTION';
+  static const notFound = 'NOT_FOUND';
+
+  // Describe (Sprint 2).
+  static const searchQuotaExhausted = 'SEARCH_QUOTA_EXHAUSTED';
+  static const searchInProgress = 'SEARCH_IN_PROGRESS';
+  static const searchNotSuccessful = 'SEARCH_NOT_SUCCESSFUL';
+  static const describeNotConfigured = 'DESCRIBE_NOT_CONFIGURED';
+  static const invalidRequest = 'INVALID_REQUEST';
+  static const invalidRetry = 'INVALID_RETRY';
+
   static const unknown = 'UNKNOWN';
 }
