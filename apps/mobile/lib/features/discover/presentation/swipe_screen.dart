@@ -15,13 +15,21 @@ import 'widgets/deck_state_card.dart';
 import 'widgets/swipe_deck.dart';
 
 /// The M12 deck area. Header and mode switch stay in [DiscoverShell].
-class SwipeScreen extends ConsumerWidget {
+class SwipeScreen extends ConsumerStatefulWidget {
   const SwipeScreen({required this.describeEnabled, super.key});
 
   final bool describeEnabled;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SwipeScreen> createState() => _SwipeScreenState();
+}
+
+class _SwipeScreenState extends ConsumerState<SwipeScreen> {
+  int _returnSeq = 0;
+  ({int seq, String id, SwipeKind kind})? _returning;
+
+  @override
+  Widget build(BuildContext context) {
     final deck = ref.watch(deckControllerProvider);
     final usage = ref.watch(dailyUsageProvider).value;
     return Padding(
@@ -30,19 +38,18 @@ class SwipeScreen extends ConsumerWidget {
         loading: () => const _DeckSkeleton(),
         error: (error, _) => _stateCard(
           context,
-          ref,
           const DeckState(status: DeckStatus.error),
           usage,
         ),
         data: (state) =>
             state.status == DeckStatus.ready && state.cards.isNotEmpty
-            ? _deck(context, ref, state)
-            : _stateCard(context, ref, state, usage),
+            ? _deck(context, state)
+            : _stateCard(context, state, usage),
       ),
     );
   }
 
-  Widget _deck(BuildContext context, WidgetRef ref, DeckState state) {
+  Widget _deck(BuildContext context, DeckState state) {
     return Column(
       children: [
         if (state.queued) ...[
@@ -55,7 +62,8 @@ class SwipeScreen extends ConsumerWidget {
         Expanded(
           child: SwipeDeck(
             cards: state.cards,
-            onSwipe: (kind) => _swipe(context, ref, kind),
+            returning: _returning,
+            onSwipe: _swipe,
             onComment: () => _comingSoon(
               context,
               title: 'Comments are coming soon',
@@ -67,13 +75,19 @@ class SwipeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _swipe(
-    BuildContext context,
-    WidgetRef ref,
-    SwipeKind kind,
-  ) async {
+  Future<void> _swipe(SwipeKind kind) async {
+    final refusedId = ref.read(deckControllerProvider).value?.top?.id;
     final outcome = await ref.read(deckControllerProvider.notifier).swipe(kind);
-    if (!context.mounted) return;
+    if (!mounted) return;
+    if (outcome == SwipeOutcome.likeLimit ||
+        outcome == SwipeOutcome.superLikeEmpty) {
+      if (refusedId != null) {
+        setState(() {
+          _returnSeq++;
+          _returning = (seq: _returnSeq, id: refusedId, kind: kind);
+        });
+      }
+    }
     if (outcome == SwipeOutcome.superLikeEmpty) {
       await _comingSoon(
         context,
@@ -83,12 +97,7 @@ class SwipeScreen extends ConsumerWidget {
     }
   }
 
-  Widget _stateCard(
-    BuildContext context,
-    WidgetRef ref,
-    DeckState state,
-    DailyUsage? usage,
-  ) {
+  Widget _stateCard(BuildContext context, DeckState state, DailyUsage? usage) {
     void reload() => ref.read(deckControllerProvider.notifier).reload();
     switch (state.status) {
       case DeckStatus.outOfLikes:
@@ -128,12 +137,14 @@ class SwipeScreen extends ConsumerWidget {
           body:
               'New people join every day, so check back tomorrow. '
               'Or describe who you want and let OMA look wider.',
-          primaryLabel: describeEnabled ? 'Describe who I want' : 'Try again',
-          onPrimary: describeEnabled
+          primaryLabel: widget.describeEnabled
+              ? 'Describe who I want'
+              : 'Try again',
+          onPrimary: widget.describeEnabled
               ? () => _switchToDescribe(context)
               : reload,
-          secondaryLabel: describeEnabled ? 'Try again' : null,
-          onSecondary: describeEnabled ? reload : null,
+          secondaryLabel: widget.describeEnabled ? 'Try again' : null,
+          onSecondary: widget.describeEnabled ? reload : null,
         );
       case DeckStatus.offlineEmpty:
         return DeckStateCard(
