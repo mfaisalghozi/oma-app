@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:oma_app/core/api/api_client.dart';
 import 'package:oma_app/core/errors/failure.dart';
 import 'package:oma_app/features/discover/application/deck_controller.dart';
 import 'package:oma_app/features/discover/application/deck_providers.dart';
@@ -15,11 +16,13 @@ void main() {
   late FakeDeckRepository deck;
   late FakeSwipeRepository swipe;
   late MemorySwipeOutbox outbox;
+  var gateRefreshes = 0;
 
   setUp(() {
     deck = FakeDeckRepository();
     swipe = FakeSwipeRepository();
     outbox = MemorySwipeOutbox();
+    gateRefreshes = 0;
   });
 
   ProviderContainer make() => ProviderContainer(
@@ -28,6 +31,7 @@ void main() {
       swipeRepositoryProvider.overrideWithValue(swipe),
       swipeOutboxProvider.overrideWithValue(outbox),
       usageRepositoryProvider.overrideWithValue(FakeUsageRepository()),
+      gateRefreshProvider.overrideWithValue(() async => gateRefreshes++),
     ],
   );
 
@@ -247,6 +251,38 @@ void main() {
     expect(outcome, SwipeOutcome.staleContext);
     expect(calls, 2);
     expect(container.read(deckControllerProvider).value!.cards.single.id, 'c2');
+  });
+
+  test('a 403 from the deck re-runs the gates', () async {
+    deck.handler = (_, _) => throw const ApiFailure(
+      code: ApiErrorCode.accountSuspended,
+      statusCode: 403,
+    );
+    final container = make();
+    addTearDown(container.dispose);
+
+    final state = await load(container);
+    expect(state.status, DeckStatus.error);
+    expect(gateRefreshes, 1);
+  });
+
+  test('a 403 on an action puts the card back and re-runs the gates', () async {
+    deck.handler = (_, _) => deckPage(cards: [deckCard(id: 'a')]);
+    swipe.error = const ApiFailure(
+      code: ApiErrorCode.accountFrozen,
+      statusCode: 403,
+    );
+    final container = make();
+    addTearDown(container.dispose);
+    await load(container);
+
+    final outcome = await container
+        .read(deckControllerProvider.notifier)
+        .swipe(SwipeKind.pass);
+
+    expect(outcome, SwipeOutcome.gate);
+    expect(container.read(deckControllerProvider).value!.cards.single.id, 'a');
+    expect(gateRefreshes, 1);
   });
 
   test('pending decisions are flushed on the next load', () async {

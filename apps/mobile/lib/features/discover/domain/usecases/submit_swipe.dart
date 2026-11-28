@@ -22,6 +22,9 @@ enum SwipeOutcome {
 
   /// The pair was already decided or the card is gone. Drop silently.
   dropped,
+
+  /// The account cannot swipe any more. Re-run the gates.
+  gate,
 }
 
 /// Sends one decision. Never throws for the cases the deck has a state for.
@@ -52,6 +55,12 @@ class SubmitSwipe {
         case ApiErrorCode.idempotencyConflict:
         case ApiErrorCode.invalidAction:
           return SwipeOutcome.dropped;
+        case ApiErrorCode.accountSuspended:
+        case ApiErrorCode.accountFrozen:
+        case ApiErrorCode.discoveryNotEligible:
+        case ApiErrorCode.onboardingRequired:
+        case ApiErrorCode.locationRequired:
+          return SwipeOutcome.gate;
         default:
           if ((failure.statusCode ?? 0) >= 500) {
             await _queue(command);

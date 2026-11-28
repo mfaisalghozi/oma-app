@@ -72,6 +72,8 @@ class FieldError {
 abstract final class ApiErrorCode {
   static const unauthorized = 'UNAUTHORIZED';
   static const accountNotInitialized = 'ACCOUNT_NOT_INITIALIZED';
+  static const onboardingRequired = 'ONBOARDING_REQUIRED';
+  static const locationRequired = 'LOCATION_REQUIRED';
   static const accountFrozen = 'ACCOUNT_FROZEN';
   static const accountSuspended = 'ACCOUNT_SUSPENDED';
   static const consentRequired = 'CONSENT_REQUIRED';

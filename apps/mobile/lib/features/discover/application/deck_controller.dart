@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/errors/failure.dart';
 import '../../usage/application/usage_providers.dart';
 import '../domain/deck_state.dart';
@@ -21,13 +22,17 @@ class DeckController extends AsyncNotifier<DeckState> {
 
   bool _busy = false;
   bool _flushing = false;
+  Timer? _expiry;
 
   /// Cards already decided in this session. The server never returns them
   /// again, but a stale cursor page could, so they are filtered out here too.
   final Set<String> _decided = {};
 
   @override
-  Future<DeckState> build() => _load();
+  Future<DeckState> build() {
+    ref.onDispose(() => _expiry?.cancel());
+    return _load();
+  }
 
   Future<DeckState> _load() async {
     try {
@@ -38,13 +43,17 @@ class DeckController extends AsyncNotifier<DeckState> {
       final pendingIds = {for (final command in pending) command.candidateId};
       final cards = [
         for (final card in page.cards)
-          if (!pendingIds.contains(card.id)) card,
+          if (!pendingIds.contains(card.id) && !_decided.contains(card.id))
+            card,
       ];
       final queued = await _flushOutbox();
-      return _stateFor(page, cards).copyWith(queued: queued);
+      final state = _stateFor(page, cards).copyWith(queued: queued);
+      _scheduleExpiry(state.expiresAt);
+      return state;
     } on NetworkFailure {
       return const DeckState(status: DeckStatus.offlineEmpty);
     } on ApiFailure catch (failure) {
+      _refreshGateIfNeeded(failure);
       return _errorState(failure);
     } on UnexpectedFailure catch (failure) {
       return _errorState(failure);
@@ -116,6 +125,9 @@ class DeckController extends AsyncNotifier<DeckState> {
         _rollback(card, null);
       case SwipeOutcome.staleContext:
         await _reloadSilently();
+      case SwipeOutcome.gate:
+        _rollback(card, null);
+        _refreshGate();
     }
     return outcome;
   }
@@ -261,6 +273,33 @@ class DeckController extends AsyncNotifier<DeckState> {
       _flushing = false;
     }
   }
+
+  /// The batch dies at `deck_expires_at`, so the deck reloads on its own.
+  void _scheduleExpiry(DateTime? at) {
+    _expiry?.cancel();
+    if (at == null) return;
+    final delay = at.difference(DateTime.now());
+    if (delay.isNegative) return;
+    _expiry = Timer(delay + const Duration(seconds: 1), () {
+      unawaited(_reloadSilently());
+    });
+  }
+
+  static const _gateCodes = {
+    ApiErrorCode.accountSuspended,
+    ApiErrorCode.accountFrozen,
+    ApiErrorCode.discoveryNotEligible,
+    ApiErrorCode.onboardingRequired,
+    ApiErrorCode.consentRequired,
+    ApiErrorCode.locationRequired,
+    ApiErrorCode.accountNotInitialized,
+  };
+
+  void _refreshGateIfNeeded(ApiFailure failure) {
+    if (_gateCodes.contains(failure.code)) _refreshGate();
+  }
+
+  void _refreshGate() => unawaited(ref.read(gateRefreshProvider)());
 
   Future<void> _reloadSilently() async {
     final next = await _load();
