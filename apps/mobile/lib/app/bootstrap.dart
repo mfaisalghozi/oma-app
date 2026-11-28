@@ -7,6 +7,9 @@ import '../core/config/app_config.dart';
 import '../core/storage/secure_session_storage.dart';
 import '../features/auth/application/auth_providers.dart';
 import '../features/auth/application/session_controller.dart';
+import '../features/install/data/flutter_secure_key_value_store.dart';
+import '../features/install/data/shared_preferences_install_flags.dart';
+import '../features/install/domain/first_launch_guard.dart';
 import 'app.dart';
 
 Future<void> bootstrap(AppConfig config) async {
@@ -18,6 +21,13 @@ Future<void> bootstrap(AppConfig config) async {
       '--dart-define-from-file=config/dev.json (see config/dev.example.json).',
     );
   }
+
+  // Before Supabase reads the Keychain: a reinstall must not inherit the
+  // previous owner's session, draft or outbox.
+  await const FirstLaunchGuard(
+    flags: SharedPreferencesInstallFlags(),
+    secure: FlutterSecureKeyValueStore(),
+  ).ensureCleanInstall();
 
   await Supabase.initialize(
     url: config.supabaseUrl,
