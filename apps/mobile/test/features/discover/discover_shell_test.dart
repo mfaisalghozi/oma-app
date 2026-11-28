@@ -108,7 +108,7 @@ void main() {
     await tester.tap(find.text('Describe'));
     await tester.pumpAndSettle();
     expect(find.text('3 of 3 searches left today'), findsOneWidget);
-    expect(find.text('Describe who you want'), findsOneWidget);
+    expect(find.text('Describe the person you want'), findsOneWidget);
   });
 
   testWidgets('hides the switch when describe is disabled', (tester) async {
